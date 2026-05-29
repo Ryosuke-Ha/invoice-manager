@@ -1,27 +1,48 @@
-# App Template
+# invoice-manager
 
-habit-trackerをベースにした新規アプリ作成用テンプレート。
+フリーランス向け請求書管理アプリ。freee連携・リマインド通知・交通費管理が主な機能。
 
-## 使い方
+## 機能
 
-1. このリポジトリをテンプレートとして新しいリポジトリを作成
-2. `TEMPLATE_APP` を新しいアプリ名に一括置換
-3. `backend/models.py` にドメインモデルを追加
-4. `backend/domain/enums.py` にアプリ固有のEnumを追加
-5. 環境変数を設定（`.env.example` を参考に）
-6. `alembic init` でマイグレーション設定
-
-## 含まれているもの
-- GitHub Actions（CI/CD・AIレビュー・PR自動作成）
-- DDDパターンの基盤（値オブジェクト・リポジトリ・例外）
-- NextAuth.js認証（Google OAuth）
-- バックエンド障害時のエラー表示
-- CLAUDE.md（開発ルール）
-- マルチエージェント開発環境（.claude/）
+- freee APIを使った請求書の作成・管理
+- Slackリマインド通知（請求期限・入金確認）
+- 交通費の記録・集計
 
 ## 技術スタック
+
 - Frontend: Next.js 14 + TypeScript + Tailwind CSS
 - Backend: FastAPI + SQLAlchemy + Alembic
 - DB: PostgreSQL（Supabase）
 - 認証: NextAuth.js（Google OAuth）
-- Infrastructure: Vercel + Railway
+- 外部連携: freee API / Slack Incoming Webhook
+- Infrastructure: Vercel（Frontend）+ Railway（Backend）
+
+## セットアップ
+
+### 環境変数
+
+```
+cp backend/.env.example backend/.env
+cp frontend/.env.example frontend/.env.local
+```
+
+各 `.env` ファイルに必要な値を設定してください。
+
+### Backend
+
+```bash
+cd backend
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+alembic upgrade head
+uvicorn main:app --reload --host 0.0.0.0
+```
+
+### Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```

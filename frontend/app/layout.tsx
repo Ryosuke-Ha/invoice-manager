@@ -3,8 +3,8 @@ import "./globals.css";
 import AuthProvider from "@/components/AuthProvider";
 
 export const metadata: Metadata = {
-  title: "TEMPLATE_APP",
-  description: "TEMPLATE_APP",
+  title: "INVOICE_MANAGER",
+  description: "INVOICE_MANAGER",
 };
 
 export default function RootLayout({

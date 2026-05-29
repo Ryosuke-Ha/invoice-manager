@@ -10,7 +10,7 @@ from domain.exceptions import DomainError
 
 models.Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="TEMPLATE_APP API")
+app = FastAPI(title="INVOICE_MANAGER API")
 
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 

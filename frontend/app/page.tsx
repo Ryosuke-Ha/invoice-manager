@@ -36,7 +36,7 @@ export default function Home() {
   // ここにアプリのメインコンテンツを追加
   return (
     <main>
-      <h1 className="text-2xl font-bold text-gray-900">TEMPLATE_APP</h1>
+      <h1 className="text-2xl font-bold text-gray-900">INVOICE_MANAGER</h1>
       <p className="text-gray-500 mt-2">ログイン中: {session?.user?.email}</p>
     </main>
   );
