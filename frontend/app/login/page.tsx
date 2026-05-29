@@ -25,7 +25,7 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center">
       <div className="w-full max-w-sm p-8 bg-white rounded-2xl shadow-md text-center">
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">TEMPLATE_APP</h1>
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">INVOICE_MANAGER</h1>
         <p className="text-gray-500 text-sm mb-8">Googleアカウントでログイン</p>
 
         <button

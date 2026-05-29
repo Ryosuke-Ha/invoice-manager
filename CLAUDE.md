@@ -1,10 +1,10 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code when working with the TEMPLATE_APP repository.
+This file provides guidance to Claude Code when working with the INVOICE_MANAGER repository.
 
 ## Project Overview
 
-TEMPLATE_APP は habit-tracker をベースにした Web アプリケーション。
+INVOICE_MANAGER は habit-tracker をベースにした Web アプリケーション。
 
 **Core philosophy**: Business logic lives in the API layer. The database stores data only. AI receives pre-processed context, not raw data.
 
