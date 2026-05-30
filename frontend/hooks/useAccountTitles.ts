@@ -15,6 +15,6 @@ export function useAccountTitles(activeOnly?: boolean) {
   const url = activeOnly
     ? `${API_URL}/api/account-titles?active_only=true`
     : `${API_URL}/api/account-titles`
-  const { data, error, isLoading } = useSWR<AccountTitle[]>(url, fetcher)
-  return { accountTitles: data ?? [], error, isLoading }
+  const { data, error, isLoading, mutate } = useSWR<AccountTitle[]>(url, fetcher)
+  return { accountTitles: data ?? [], error, isLoading, mutate }
 }
