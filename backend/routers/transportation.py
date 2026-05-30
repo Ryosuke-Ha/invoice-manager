@@ -5,17 +5,31 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from database import get_db
 from domain.exceptions import TransportationAlreadyFixedError
+from factories.transportation_invoice_detail_factory import (
+    TransportationInvoiceDetailFactory,
+)
 from models import MonthlyTransportationSummary, TransportationExpense
+from repositories import invoice_repository as invoice_repo
 from repositories import transportation_repository as repo
+from schemas.invoice import InvoiceResponse
 from schemas.transportation import (
     ExpenseCreate,
     ExpenseUpdate,
     SummaryResponse,
 )
+from services.transportation_merge_domain_service import (
+    TransportationMergeDomainService,
+)
+
+
+class MergeToInvoiceRequest(BaseModel):
+    account_title_id: Optional[UUID] = None
+
 
 router = APIRouter(prefix="/api/transportation", tags=["transportation"])
 
@@ -172,3 +186,46 @@ def delete_expense(
 
     db.delete(expense)
     db.commit()
+
+
+@router.post("/{year}/{month}/fix", response_model=SummaryResponse)
+def fix_summary(year: int, month: int, db: Session = Depends(get_db)):
+    summary = repo.find_by_year_month(db, year, month)
+    if summary is None:
+        raise HTTPException(status_code=404, detail="交通費集計が見つかりません")
+
+    if summary.is_fixed:
+        raise HTTPException(
+            status_code=400,
+            detail="既に確定済みの交通費集計です",
+        )
+
+    summary.is_fixed = True
+    repo.save(db, summary)
+
+    updated = repo.find_by_year_month(db, year, month)
+    return _summary_response(updated)
+
+
+@router.post("/{year}/{month}/merge-to-invoice", response_model=InvoiceResponse)
+def merge_to_invoice(
+    year: int,
+    month: int,
+    body: MergeToInvoiceRequest,
+    db: Session = Depends(get_db),
+):
+    summary = repo.find_by_year_month(db, year, month)
+    if summary is None:
+        raise HTTPException(status_code=404, detail="交通費集計が見つかりません")
+
+    merge_service = TransportationMergeDomainService()
+    try:
+        merge_service.validate_merge(summary)
+    except TransportationAlreadyFixedError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    factory = TransportationInvoiceDetailFactory()
+    invoice = factory.create_invoice_from_summary(
+        summary, account_title_id=body.account_title_id
+    )
+    return invoice_repo.save(db, invoice)
