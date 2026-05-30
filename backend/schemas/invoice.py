@@ -8,12 +8,14 @@ from domain.enums import FreeeSyncStatus, InvoiceStatus
 
 
 class InvoiceCreate(BaseModel):
-    title: str
-    amount: int
-    due_date: date
-    issue_date: date
+    title: Optional[str] = None
+    amount: Optional[int] = None
+    due_date: Optional[date] = None
+    issue_date: Optional[date] = None
     account_title_id: Optional[UUID] = None
     template_id: Optional[UUID] = None
+    year: Optional[int] = None
+    month: Optional[int] = None
 
 
 class InvoiceUpdate(BaseModel):
