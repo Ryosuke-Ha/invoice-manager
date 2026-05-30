@@ -6,15 +6,17 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from database import get_db
-from domain.enums import InvoiceStatus
+from domain.enums import FreeeSyncStatus, InvoiceStatus
 from domain.exceptions import (
     InvalidAmountError,
     InvalidIssueDateError,
     InvalidStatusTransitionError,
 )
 from domain.value_objects import InvoiceAmount, IssueDate, validate_status_transition
+from external.freee_client import FreeeClient
 from factories.invoice_factory import create_from_template
 from models import Invoice
+from repositories import account_title_repository as account_title_repo
 from repositories import invoice_repository as repo
 from repositories import template_repository as tmpl_repo
 from schemas.invoice import (
@@ -23,6 +25,7 @@ from schemas.invoice import (
     InvoiceStatusUpdate,
     InvoiceUpdate,
 )
+from services.freee_sync_domain_service import FreeeSyncDomainService
 
 JST = timezone(timedelta(hours=9))
 
@@ -143,4 +146,35 @@ def update_invoice_status(
     if body.status == InvoiceStatus.PAID:
         invoice.paid_date = datetime.now(JST).date()
 
+    return repo.save(db, invoice)
+
+
+@router.post("/{id}/sync-freee", response_model=InvoiceResponse)
+def sync_to_freee(id: UUID, db: Session = Depends(get_db)):
+    invoice = repo.find_by_id(db, id)
+    if invoice is None:
+        raise HTTPException(status_code=404, detail="請求書が見つかりません")
+
+    sync_service = FreeeSyncDomainService()
+    if not sync_service.is_sync_target(invoice):
+        raise HTTPException(
+            status_code=400,
+            detail="支払済み・未連携の請求書のみ連携可能です",
+        )
+
+    account_title = None
+    if invoice.account_title_id is not None:
+        account_title = account_title_repo.find_by_id(db, invoice.account_title_id)
+
+    try:
+        freee_client = FreeeClient()
+        deal_id = freee_client.create_deal(invoice, account_title)
+    except Exception as e:
+        raise HTTPException(
+            status_code=502,
+            detail=f"freee APIエラー: {str(e)}",
+        )
+
+    invoice.freee_deal_id = deal_id
+    invoice.freee_sync_status = FreeeSyncStatus.SYNCED.value
     return repo.save(db, invoice)

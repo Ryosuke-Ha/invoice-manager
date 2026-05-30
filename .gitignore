@@ -23,5 +23,8 @@ frontend/node_modules/
 # Claude Code (local settings only)
 .claude/settings.local.json
 
+# freee tokens (never commit)
+backend/.tokens/
+
 # Coverage
 .coverage
