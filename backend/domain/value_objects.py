@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from datetime import date, timedelta, datetime, timezone
 
+from domain.exceptions import InvalidAmountError, InvalidIssueDateError
+
 
 JST = timezone(timedelta(hours=9))
 
@@ -89,9 +91,43 @@ class YearMonth:
         return self.to_string()
 
 
-# ここにアプリ固有の値オブジェクトを追加
-# 例:
-# @dataclass(frozen=True)
-# class SomeValue:
-#     value: str
-#     def __post_init__(self): ...
+@dataclass(frozen=True)
+class InvoiceAmount:
+    """請求金額を表す値オブジェクト。0より大きい整数のみ許可。"""
+    value: int
+
+    def __post_init__(self) -> None:
+        if self.value <= 0:
+            raise InvalidAmountError(
+                f"請求金額は0より大きい整数である必要があります: {self.value}"
+            )
+
+
+@dataclass(frozen=True)
+class DueDate:
+    """支払期日を表す値オブジェクト。"""
+    value: date
+
+    def is_within_reminder_range(self) -> bool:
+        """今日から0〜3日以内の期日かどうか"""
+        today = datetime.now(JST).date()
+        delta = (self.value - today).days
+        return 0 <= delta <= 3
+
+    def is_overdue(self) -> bool:
+        """今日より前（期日超過）かどうか"""
+        today = datetime.now(JST).date()
+        return self.value < today
+
+
+@dataclass(frozen=True)
+class IssueDate:
+    """請求書発生日を表す値オブジェクト。未来日付は不可。"""
+    value: date
+
+    def __post_init__(self) -> None:
+        today = datetime.now(JST).date()
+        if self.value > today:
+            raise InvalidIssueDateError(
+                f"発生日に未来の日付は設定できません: {self.value}"
+            )
