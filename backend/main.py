@@ -7,7 +7,7 @@ from fastapi.responses import JSONResponse
 from database import engine
 import models
 from domain.exceptions import DomainError
-from routers import account_titles, freee, invoices, templates, transportation
+from routers import account_titles, batch, freee, invoices, templates, transportation
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -42,3 +42,4 @@ app.include_router(invoices.router)
 app.include_router(templates.router)
 app.include_router(transportation.router)
 app.include_router(freee.router)
+app.include_router(batch.router)
