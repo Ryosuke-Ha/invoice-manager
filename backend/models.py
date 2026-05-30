@@ -5,6 +5,7 @@ from sqlalchemy import (
     Integer, String, UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
 from database import Base
@@ -80,6 +81,10 @@ class MonthlyTransportationSummary(Base):
 
     __table_args__ = (UniqueConstraint("year", "month", name="uq_year_month"),)
 
+    expenses = relationship(
+        "TransportationExpense", back_populates="summary", lazy="select"
+    )
+
 
 class TransportationExpense(Base):
     __tablename__ = "transportation_expenses"
@@ -96,4 +101,8 @@ class TransportationExpense(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    summary = relationship(
+        "MonthlyTransportationSummary", back_populates="expenses"
     )
