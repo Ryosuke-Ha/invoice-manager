@@ -7,6 +7,7 @@ from fastapi.responses import JSONResponse
 from database import engine
 import models
 from domain.exceptions import DomainError
+from routers import account_titles
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -36,7 +37,4 @@ async def health_check():
     return {"status": "ok"}
 
 
-# ここにアプリ固有のルーターを追加
-# 例:
-# from routers import items
-# app.include_router(items.router)
+app.include_router(account_titles.router)
