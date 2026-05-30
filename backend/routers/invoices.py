@@ -13,8 +13,10 @@ from domain.exceptions import (
     InvalidStatusTransitionError,
 )
 from domain.value_objects import InvoiceAmount, IssueDate, validate_status_transition
+from factories.invoice_factory import create_from_template
 from models import Invoice
 from repositories import invoice_repository as repo
+from repositories import template_repository as tmpl_repo
 from schemas.invoice import (
     InvoiceCreate,
     InvoiceResponse,
@@ -45,6 +47,26 @@ def get_invoice(id: UUID, db: Session = Depends(get_db)):
 
 @router.post("", response_model=InvoiceResponse, status_code=201)
 def create_invoice(body: InvoiceCreate, db: Session = Depends(get_db)):
+    if body.template_id is not None:
+        template = tmpl_repo.find_by_id(db, body.template_id)
+        if template is None:
+            raise HTTPException(
+                status_code=400, detail="テンプレートが見つかりません"
+            )
+        now = datetime.now(JST)
+        year = body.year if body.year is not None else now.year
+        month = body.month if body.month is not None else now.month
+        invoice = create_from_template(template, year, month)
+        return repo.save(db, invoice)
+
+    # テンプレートなし: 必須フィールドを検証
+    if body.title is None or body.amount is None \
+            or body.due_date is None or body.issue_date is None:
+        raise HTTPException(
+            status_code=400,
+            detail="template_id を指定しない場合は title・amount・due_date・issue_date が必須です",
+        )
+
     try:
         InvoiceAmount(body.amount)
     except InvalidAmountError as e:
