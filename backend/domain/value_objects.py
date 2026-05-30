@@ -1,7 +1,13 @@
 from dataclasses import dataclass
 from datetime import date, timedelta, datetime, timezone
+from typing import Dict, List
 
-from domain.exceptions import InvalidAmountError, InvalidIssueDateError
+from domain.enums import InvoiceStatus
+from domain.exceptions import (
+    InvalidAmountError,
+    InvalidIssueDateError,
+    InvalidStatusTransitionError,
+)
 
 
 JST = timezone(timedelta(hours=9))
@@ -131,3 +137,23 @@ class IssueDate:
             raise InvalidIssueDateError(
                 f"発生日に未来の日付は設定できません: {self.value}"
             )
+
+
+VALID_TRANSITIONS: Dict[InvoiceStatus, List[InvoiceStatus]] = {
+    InvoiceStatus.DRAFT: [InvoiceStatus.SENT],
+    InvoiceStatus.SENT: [InvoiceStatus.REMINDING, InvoiceStatus.OVERDUE],
+    InvoiceStatus.REMINDING: [InvoiceStatus.OVERDUE, InvoiceStatus.PAID],
+    InvoiceStatus.OVERDUE: [InvoiceStatus.PAID],
+    InvoiceStatus.PAID: [InvoiceStatus.SYNCED_TO_FREEE],
+    InvoiceStatus.SYNCED_TO_FREEE: [InvoiceStatus.COMPLETED],
+    InvoiceStatus.COMPLETED: [],
+}
+
+
+def validate_status_transition(
+    current: InvoiceStatus, next_status: InvoiceStatus
+) -> None:
+    if next_status not in VALID_TRANSITIONS[current]:
+        raise InvalidStatusTransitionError(
+            f"{current} → {next_status} への遷移は許可されていません"
+        )

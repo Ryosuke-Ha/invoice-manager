@@ -24,6 +24,10 @@ class InvoiceUpdate(BaseModel):
     account_title_id: Optional[UUID] = None
 
 
+class InvoiceStatusUpdate(BaseModel):
+    status: InvoiceStatus
+
+
 class InvoiceResponse(BaseModel):
     id: UUID
     title: str

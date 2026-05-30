@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 from uuid import UUID
 
@@ -11,10 +12,17 @@ from domain.exceptions import (
     InvalidIssueDateError,
     InvalidStatusTransitionError,
 )
-from domain.value_objects import InvoiceAmount, IssueDate
+from domain.value_objects import InvoiceAmount, IssueDate, validate_status_transition
 from models import Invoice
 from repositories import invoice_repository as repo
-from schemas.invoice import InvoiceCreate, InvoiceResponse, InvoiceUpdate
+from schemas.invoice import (
+    InvoiceCreate,
+    InvoiceResponse,
+    InvoiceStatusUpdate,
+    InvoiceUpdate,
+)
+
+JST = timezone(timedelta(hours=9))
 
 router = APIRouter(prefix="/api/invoices", tags=["invoices"])
 
@@ -90,3 +98,27 @@ def delete_invoice(id: UUID, db: Session = Depends(get_db)):
         repo.remove(db, id)
     except InvalidStatusTransitionError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.put("/{id}/status", response_model=InvoiceResponse)
+def update_invoice_status(
+    id: UUID,
+    body: InvoiceStatusUpdate,
+    db: Session = Depends(get_db),
+):
+    invoice = repo.find_by_id(db, id)
+    if invoice is None:
+        raise HTTPException(status_code=404, detail="請求書が見つかりません")
+
+    current = InvoiceStatus(invoice.status)
+    try:
+        validate_status_transition(current, body.status)
+    except InvalidStatusTransitionError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    invoice.status = body.status.value
+
+    if body.status == InvoiceStatus.PAID:
+        invoice.paid_date = datetime.now(JST).date()
+
+    return repo.save(db, invoice)
