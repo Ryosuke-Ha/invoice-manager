@@ -12,9 +12,9 @@ const fetcher = (url: string): Promise<InvoiceTemplate[]> =>
   })
 
 export function useTemplates() {
-  const { data, error, isLoading } = useSWR<InvoiceTemplate[]>(
+  const { data, error, isLoading, mutate } = useSWR<InvoiceTemplate[]>(
     `${API_URL}/api/templates`,
     fetcher
   )
-  return { templates: data ?? [], error, isLoading }
+  return { templates: data ?? [], error, isLoading, mutate }
 }
