@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import AuthProvider from "@/components/AuthProvider";
-import { Nav } from "@/components/Nav";
+import { HamburgerMenu } from "@/components/layout/HamburgerMenu";
 
 export const metadata: Metadata = {
   title: "INVOICE_MANAGER",
@@ -17,8 +17,8 @@ export default function RootLayout({
     <html lang="ja">
       <body className="bg-gray-50 min-h-screen">
         <AuthProvider>
+          <HamburgerMenu />
           <div className="max-w-lg mx-auto px-4 pt-6 pb-8">
-            <Nav />
             {children}
           </div>
         </AuthProvider>
