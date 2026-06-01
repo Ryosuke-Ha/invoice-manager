@@ -11,8 +11,7 @@ import {
   useMergeToInvoice,
 } from "@/hooks/useTransportation"
 import { useAccountTitles } from "@/hooks/useAccountTitles"
-import { ExpenseForm, ExpenseFormValues } from "@/components/transportation/ExpenseForm"
-import { ExpenseList } from "@/components/transportation/ExpenseList"
+import { ExpenseTable } from "@/components/transportation/ExpenseTable"
 
 const now = new Date()
 const DEFAULT_YEAR = now.getFullYear()
@@ -31,7 +30,6 @@ export default function TransportationPage() {
   const { mergeToInvoice } = useMergeToInvoice(year, month)
   const { accountTitles } = useAccountTitles(true)
 
-  const [isAddingExpense, setIsAddingExpense] = useState(false)
   const [showFixModal, setShowFixModal] = useState(false)
   const [isFixing, setIsFixing] = useState(false)
   const [fixError, setFixError] = useState<string | null>(null)
@@ -50,17 +48,12 @@ export default function TransportationPage() {
     else setMonth((m) => m + 1)
   }
 
-  const handleAddExpense = async (values: ExpenseFormValues) => {
-    setIsAddingExpense(true)
-    try {
-      await addExpense({
-        expense_date: values.expense_date,
-        amount: Number(values.amount),
-        description: values.description,
-      })
-    } finally {
-      setIsAddingExpense(false)
-    }
+  const handleAddExpense = async (values: {
+    expense_date: string
+    amount: number
+    description: string
+  }) => {
+    await addExpense(values)
   }
 
   const handleUpdateExpense = async (
@@ -137,28 +130,15 @@ export default function TransportationPage() {
 
       {!isLoading && !error && (
         <>
-          {/* Add expense form (unfixed only) */}
-          {!summary?.is_fixed && (
-            <div className="bg-white border border-gray-200 rounded-lg p-4 mb-4">
-              <h2 className="text-base font-semibold text-gray-800 mb-3">
-                交通費を追加
-              </h2>
-              <ExpenseForm
-                onSubmit={handleAddExpense}
-                submitLabel="追加"
-                isSubmitting={isAddingExpense}
-              />
-            </div>
-          )}
-
-          {/* Expense list */}
+          {/* Expense table */}
           <div className="bg-white border border-gray-200 rounded-lg p-4 mb-4">
             <h2 className="text-base font-semibold text-gray-800 mb-3">
               交通費一覧
             </h2>
             {summary ? (
-              <ExpenseList
+              <ExpenseTable
                 summary={summary}
+                onAdd={handleAddExpense}
                 onUpdate={handleUpdateExpense}
                 onDelete={handleDeleteExpense}
               />
