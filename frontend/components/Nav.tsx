@@ -2,6 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { useSession } from "next-auth/react"
 
 const NAV_ITEMS = [
   { href: "/invoices", label: "請求書" },
@@ -12,6 +13,11 @@ const NAV_ITEMS = [
 
 export function Nav() {
   const pathname = usePathname()
+  const { status } = useSession()
+
+  if (status !== "authenticated") {
+    return null
+  }
 
   return (
     <nav className="flex gap-1 overflow-x-auto border-b border-gray-200 mb-6 pb-0">
