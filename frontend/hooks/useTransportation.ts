@@ -1,7 +1,7 @@
 "use client"
 
 import useSWR, { useSWRConfig } from "swr"
-import { MonthlyTransportationSummary } from "@/types/transportation"
+import { MonthlyTransportationSummary, TransportationTemplate } from "@/types/transportation"
 import { Invoice } from "@/types/invoice"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
@@ -132,6 +132,88 @@ export function useFixTransportation(year: number, month: number) {
   }
 
   return { fixTransportation }
+}
+
+const TEMPLATES_KEY = `${API_URL}/api/transportation/templates`
+
+const templatesFetcher = (url: string): Promise<TransportationTemplate[]> =>
+  fetch(url).then((res) => {
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    return res.json() as Promise<TransportationTemplate[]>
+  })
+
+export function useTransportationTemplates() {
+  const { data, error, isLoading, mutate } = useSWR<TransportationTemplate[]>(
+    TEMPLATES_KEY,
+    templatesFetcher
+  )
+  return { templates: data ?? [], error, isLoading, mutate }
+}
+
+export function useCreateTransportationTemplate() {
+  const { mutate } = useSWRConfig()
+
+  const createTemplate = async (values: {
+    day_of_week: number
+    amount: number
+    description: string
+  }): Promise<TransportationTemplate> => {
+    const res = await fetch(`${API_URL}/api/transportation/templates`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(values),
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({})) as { detail?: string }
+      throw new Error(err.detail ?? `HTTP ${res.status}`)
+    }
+    const created = await res.json() as TransportationTemplate
+    await mutate(TEMPLATES_KEY)
+    return created
+  }
+
+  return { createTemplate }
+}
+
+export function useUpdateTransportationTemplate() {
+  const { mutate } = useSWRConfig()
+
+  const updateTemplate = async (
+    id: string,
+    values: { day_of_week?: number; amount?: number; description?: string }
+  ): Promise<TransportationTemplate> => {
+    const res = await fetch(`${API_URL}/api/transportation/templates/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(values),
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({})) as { detail?: string }
+      throw new Error(err.detail ?? `HTTP ${res.status}`)
+    }
+    const updated = await res.json() as TransportationTemplate
+    await mutate(TEMPLATES_KEY)
+    return updated
+  }
+
+  return { updateTemplate }
+}
+
+export function useDeleteTransportationTemplate() {
+  const { mutate } = useSWRConfig()
+
+  const deleteTemplate = async (id: string): Promise<void> => {
+    const res = await fetch(`${API_URL}/api/transportation/templates/${id}`, {
+      method: "DELETE",
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({})) as { detail?: string }
+      throw new Error(err.detail ?? `HTTP ${res.status}`)
+    }
+    await mutate(TEMPLATES_KEY)
+  }
+
+  return { deleteTemplate }
 }
 
 export function useMergeToInvoice(year: number, month: number) {
