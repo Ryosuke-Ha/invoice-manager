@@ -8,6 +8,16 @@ export interface TransportationExpense {
   updated_at: string
 }
 
+export interface TransportationTemplate {
+  id: string
+  day_of_week: number
+  day_of_week_label: string
+  amount: number
+  description: string
+  created_at: string
+  updated_at: string
+}
+
 export interface MonthlyTransportationSummary {
   id: string | null
   year: number

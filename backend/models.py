@@ -86,6 +86,19 @@ class MonthlyTransportationSummary(Base):
     )
 
 
+class TransportationTemplate(Base):
+    __tablename__ = "transportation_templates"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    day_of_week = Column(Integer, nullable=False)  # 0=月 1=火 2=水 3=木 4=金 5=土 6=日
+    amount = Column(Integer, nullable=False)
+    description = Column(String(255), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
 class TransportationExpense(Base):
     __tablename__ = "transportation_expenses"
 

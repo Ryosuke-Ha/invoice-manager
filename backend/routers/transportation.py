@@ -13,14 +13,18 @@ from domain.exceptions import TransportationAlreadyFixedError
 from factories.transportation_invoice_detail_factory import (
     TransportationInvoiceDetailFactory,
 )
-from models import MonthlyTransportationSummary, TransportationExpense
+from models import MonthlyTransportationSummary, TransportationExpense, TransportationTemplate
 from repositories import invoice_repository as invoice_repo
 from repositories import transportation_repository as repo
+from repositories import transportation_template_repository as tmpl_repo
 from schemas.invoice import InvoiceResponse
 from schemas.transportation import (
     ExpenseCreate,
     ExpenseUpdate,
     SummaryResponse,
+    TransportationTemplateCreate,
+    TransportationTemplateResponse,
+    TransportationTemplateUpdate,
 )
 from services.transportation_merge_domain_service import (
     TransportationMergeDomainService,
@@ -32,6 +36,57 @@ class MergeToInvoiceRequest(BaseModel):
 
 
 router = APIRouter(prefix="/api/transportation", tags=["transportation"])
+
+
+# ── Template endpoints ────────────────────────────────────────────────────────
+
+@router.get("/templates", response_model=list[TransportationTemplateResponse])
+def list_templates(db: Session = Depends(get_db)):
+    return tmpl_repo.find_all(db)
+
+
+@router.post(
+    "/templates",
+    response_model=TransportationTemplateResponse,
+    status_code=201,
+)
+def create_template(
+    body: TransportationTemplateCreate,
+    db: Session = Depends(get_db),
+):
+    template = TransportationTemplate(
+        day_of_week=body.day_of_week,
+        amount=body.amount,
+        description=body.description,
+    )
+    return tmpl_repo.save(db, template)
+
+
+@router.put("/templates/{template_id}", response_model=TransportationTemplateResponse)
+def update_template(
+    template_id: UUID,
+    body: TransportationTemplateUpdate,
+    db: Session = Depends(get_db),
+):
+    template = tmpl_repo.find_by_id(db, template_id)
+    if template is None:
+        raise HTTPException(status_code=404, detail="テンプレートが見つかりません")
+
+    for field, value in body.model_dump(exclude_unset=True).items():
+        setattr(template, field, value)
+
+    return tmpl_repo.save(db, template)
+
+
+@router.delete("/templates/{template_id}", status_code=204)
+def delete_template(
+    template_id: UUID,
+    db: Session = Depends(get_db),
+):
+    template = tmpl_repo.find_by_id(db, template_id)
+    if template is None:
+        raise HTTPException(status_code=404, detail="テンプレートが見つかりません")
+    tmpl_repo.remove(db, template_id)
 
 
 def _summary_response(summary: MonthlyTransportationSummary) -> SummaryResponse:
