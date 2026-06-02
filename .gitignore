@@ -28,3 +28,6 @@ backend/.tokens/
 
 # Coverage
 .coverage
+
+# dev.sh
+dev.sh
