@@ -27,8 +27,13 @@ interface Props {
 
 const EMPTY: EditValues = { expense_date: "", amount: "", description: "" }
 
+const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"]
+
 function formatDate(s: string) {
-  return s.replace(/-/g, "/")
+  const [y, m, d] = s.split("-").map(Number)
+  const day = WEEKDAYS[new Date(y, m - 1, d).getDay()]
+  const dayColor = day === "日" ? "text-red-500" : day === "土" ? "text-blue-500" : ""
+  return { label: `${m}/${d}`, day, dayColor }
 }
 
 function isValid(v: EditValues): boolean {
@@ -292,7 +297,7 @@ export function ExpenseTable({ isFixed, expenses, tempExpenses, onAdd, onUpdate,
                   ) : (
                     <>
                       <td className="px-3 py-3 text-base text-gray-700 whitespace-nowrap">
-                        {formatDate(expense.expense_date)}
+                        {(() => { const { label, day, dayColor } = formatDate(expense.expense_date); return <>{label} <span className={`text-sm ${dayColor}`}>({day})</span></> })()}
                       </td>
                       <td className="px-3 py-3 text-base text-gray-900 text-right whitespace-nowrap">
                         {expense.amount.toLocaleString()}円
@@ -397,7 +402,7 @@ export function ExpenseTable({ isFixed, expenses, tempExpenses, onAdd, onUpdate,
                   ) : (
                     <>
                       <td className="px-3 py-3 text-base text-gray-400 whitespace-nowrap">
-                        {formatDate(temp.expense_date)}
+                        {(() => { const { label, day, dayColor } = formatDate(temp.expense_date); return <>{label} <span className={`text-sm ${dayColor || "text-gray-400"}`}>({day})</span></> })()}
                       </td>
                       <td className="px-3 py-3 text-base text-gray-300 text-right whitespace-nowrap">
                         —
