@@ -25,14 +25,14 @@ function LoginContent() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="w-full max-w-sm p-8 bg-white rounded-2xl shadow-md text-center">
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">INVOICE_MANAGER</h1>
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="w-full max-w-sm p-8 bg-white rounded-lg border border-gray-200 shadow-sm text-center">
+        <h1 className="text-2xl font-bold text-primary-600 mb-2">invoice-manager</h1>
         <p className="text-gray-500 text-sm mb-8">Googleアカウントでログイン</p>
 
         <button
           onClick={() => signIn("google", { callbackUrl })}
-          className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+          className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-gray-200 rounded-md text-base font-medium text-gray-700 hover:bg-gray-50 transition-colors"
         >
           <svg className="w-5 h-5" viewBox="0 0 24 24">
             <path
