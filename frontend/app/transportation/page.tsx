@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import {
   useTransportation,
@@ -11,12 +11,25 @@ import {
   useMergeToInvoice,
 } from "@/hooks/useTransportation"
 import { useAccountTitles } from "@/hooks/useAccountTitles"
-import { ExpenseTable } from "@/components/transportation/ExpenseTable"
+import { ExpenseTable, TempExpense } from "@/components/transportation/ExpenseTable"
 import { Button } from "@/components/ui/Button"
 
 const now = new Date()
 const DEFAULT_YEAR = now.getFullYear()
 const DEFAULT_MONTH = now.getMonth() + 1
+
+function generateTempExpenses(year: number, month: number): TempExpense[] {
+  const daysInMonth = new Date(year, month, 0).getDate()
+  return Array.from({ length: daysInMonth }, (_, i) => ({
+    expense_date: `${year}-${String(month).padStart(2, "0")}-${String(i + 1).padStart(2, "0")}`,
+    amount: 0,
+    description: "",
+  }))
+}
+
+function isValidTempExpense(t: TempExpense): boolean {
+  return t.amount >= 1 && t.description.trim() !== ""
+}
 
 export default function TransportationPage() {
   const router = useRouter()
@@ -30,6 +43,30 @@ export default function TransportationPage() {
   const { fixTransportation } = useFixTransportation(year, month)
   const { mergeToInvoice } = useMergeToInvoice(year, month)
   const { accountTitles } = useAccountTitles(true)
+
+  const [tempExpenses, setTempExpenses] = useState<TempExpense[]>([])
+
+  // Reset temp rows on year/month change
+  useEffect(() => {
+    setTempExpenses([])
+  }, [year, month])
+
+  // Generate temp rows when the month has no saved expenses
+  useEffect(() => {
+    if (
+      !isLoading &&
+      !error &&
+      summary &&
+      summary.expenses.length === 0 &&
+      tempExpenses.length === 0
+    ) {
+      setTempExpenses(generateTempExpenses(year, month))
+    }
+  }, [year, month, isLoading, error, summary?.expenses.length, tempExpenses.length])
+
+  const handleTempSaved = (expense_date: string) => {
+    setTempExpenses((prev) => prev.filter((t) => t.expense_date !== expense_date))
+  }
 
   const [showFixModal, setShowFixModal] = useState(false)
   const [isFixing, setIsFixing] = useState(false)
@@ -73,6 +110,16 @@ export default function TransportationPage() {
     setIsFixing(true)
     setFixError(null)
     try {
+      // Save all input temp expenses before confirming
+      const unsaved = tempExpenses.filter(isValidTempExpense)
+      for (const temp of unsaved) {
+        await addExpense({
+          expense_date: temp.expense_date,
+          amount: temp.amount,
+          description: temp.description,
+        })
+      }
+      setTempExpenses([])
       await fixTransportation()
       setShowFixModal(false)
     } catch (err) {
@@ -93,6 +140,10 @@ export default function TransportationPage() {
       setIsMerging(false)
     }
   }
+
+  const hasRealExpenses = (summary?.expenses.length ?? 0) > 0
+  const hasTempInput = tempExpenses.some(isValidTempExpense)
+  const canFix = hasRealExpenses || hasTempInput
 
   return (
     <div>
@@ -139,18 +190,15 @@ export default function TransportationPage() {
             <h2 className="text-base font-semibold text-gray-800 mb-3">
               交通費一覧
             </h2>
-            {summary ? (
-              <ExpenseTable
-                summary={summary}
-                onAdd={handleAddExpense}
-                onUpdate={handleUpdateExpense}
-                onDelete={handleDeleteExpense}
-              />
-            ) : (
-              <p className="text-gray-400 text-base text-center py-4">
-                交通費がありません
-              </p>
-            )}
+            <ExpenseTable
+              isFixed={summary?.is_fixed ?? false}
+              expenses={summary?.expenses ?? []}
+              tempExpenses={tempExpenses}
+              onAdd={handleAddExpense}
+              onUpdate={handleUpdateExpense}
+              onDelete={handleDeleteExpense}
+              onTempSaved={handleTempSaved}
+            />
           </div>
 
           {/* Fix / merge area */}
@@ -174,7 +222,7 @@ export default function TransportationPage() {
               <Button
                 variant="primary"
                 onClick={() => { setShowFixModal(true); setFixError(null) }}
-                disabled={!summary || summary.expenses.length === 0}
+                disabled={!canFix}
                 className="w-full"
               >
                 月次確定
