@@ -96,7 +96,7 @@ export default function TransportationPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-6 pr-14 lg:pr-0">
         <h1 className="text-2xl font-bold text-gray-900">月次交通費</h1>
         {/* Year/month navigation */}
         <div className="flex items-center gap-2">
