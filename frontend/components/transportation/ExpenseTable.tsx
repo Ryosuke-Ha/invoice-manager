@@ -1,7 +1,13 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
-import { MonthlyTransportationSummary } from "@/types/transportation"
+import { TransportationExpense } from "@/types/transportation"
+
+export interface TempExpense {
+  expense_date: string
+  amount: number
+  description: string
+}
 
 interface EditValues {
   expense_date: string
@@ -10,16 +16,24 @@ interface EditValues {
 }
 
 interface Props {
-  summary: MonthlyTransportationSummary
+  isFixed: boolean
+  expenses: TransportationExpense[]
+  tempExpenses: TempExpense[]
   onAdd: (values: { expense_date: string; amount: number; description: string }) => Promise<void>
   onUpdate: (expenseId: string, values: { expense_date: string; amount: number; description: string }) => Promise<void>
   onDelete: (expenseId: string) => Promise<void>
+  onTempSaved: (expense_date: string) => void
 }
 
 const EMPTY: EditValues = { expense_date: "", amount: "", description: "" }
 
+const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"]
+
 function formatDate(s: string) {
-  return s.replace(/-/g, "/")
+  const [y, m, d] = s.split("-").map(Number)
+  const day = WEEKDAYS[new Date(y, m - 1, d).getDay()]
+  const dayColor = day === "日" ? "text-red-500" : day === "土" ? "text-blue-500" : ""
+  return { label: `${m}/${d}`, day, dayColor }
 }
 
 function isValid(v: EditValues): boolean {
@@ -30,11 +44,9 @@ function isValid(v: EditValues): boolean {
 const inputClass =
   "w-full border border-gray-300 rounded px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
 
-export function ExpenseTable({ summary, onAdd, onUpdate, onDelete }: Props) {
-  const isFixed = summary.is_fixed
-  const expenses = summary.expenses
-
-  const [editingId, setEditingId] = useState<string | null>(null)
+export function ExpenseTable({ isFixed, expenses, tempExpenses, onAdd, onUpdate, onDelete, onTempSaved }: Props) {
+  // editingKey is either a real expense UUID or a temp expense_date string
+  const [editingKey, setEditingKey] = useState<string | null>(null)
   const [editValues, setEditValues] = useState<EditValues>(EMPTY)
   const [isSaving, setIsSaving] = useState(false)
 
@@ -45,48 +57,93 @@ export function ExpenseTable({ summary, onAdd, onUpdate, onDelete }: Props) {
   const newDateRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    if (editingId !== null) {
+    if (editingKey !== null) {
       editDateRef.current?.focus()
     }
-  }, [editingId])
+  }, [editingKey])
 
-  const startEdit = (id: string, values: EditValues) => {
+  const editingRealExpense = expenses.find((e) => e.id === editingKey) ?? null
+  const editingTempExpense = tempExpenses.find((t) => t.expense_date === editingKey) ?? null
+
+  // Combined list of row keys for goToNext navigation
+  const allRowKeys = [
+    ...expenses.map((e) => e.id),
+    ...tempExpenses.map((t) => t.expense_date),
+  ]
+
+  const startEditReal = (expense: TransportationExpense) => {
     if (isFixed) return
-    setEditingId(id)
-    setEditValues(values)
+    setEditingKey(expense.id)
+    setEditValues({
+      expense_date: expense.expense_date,
+      amount: String(expense.amount),
+      description: expense.description,
+    })
+  }
+
+  const startEditTemp = (temp: TempExpense) => {
+    if (isFixed) return
+    setEditingKey(temp.expense_date)
+    setEditValues({
+      expense_date: temp.expense_date,
+      amount: temp.amount > 0 ? String(temp.amount) : "",
+      description: temp.description,
+    })
   }
 
   const cancelEdit = () => {
-    setEditingId(null)
+    setEditingKey(null)
     setEditValues(EMPTY)
   }
 
+  const goToNextRow = (currentKey: string) => {
+    const idx = allRowKeys.indexOf(currentKey)
+    const nextKey = idx !== -1 && idx < allRowKeys.length - 1 ? allRowKeys[idx + 1] : null
+    if (nextKey) {
+      const nextReal = expenses.find((e) => e.id === nextKey)
+      const nextTemp = tempExpenses.find((t) => t.expense_date === nextKey)
+      if (nextReal) {
+        setEditingKey(nextKey)
+        setEditValues({
+          expense_date: nextReal.expense_date,
+          amount: String(nextReal.amount),
+          description: nextReal.description,
+        })
+      } else if (nextTemp) {
+        setEditingKey(nextKey)
+        setEditValues({ expense_date: nextTemp.expense_date, amount: "", description: "" })
+      }
+    } else {
+      setEditingKey(null)
+      setEditValues(EMPTY)
+      setTimeout(() => newDateRef.current?.focus(), 50)
+    }
+  }
+
   const saveEdit = async (goToNext: boolean) => {
-    if (!editingId || !isValid(editValues) || isSaving) return
+    if (!editingKey || !isValid(editValues) || isSaving) return
     setIsSaving(true)
+    // Capture the current key before async operation in case state changes
+    const currentKey = editingKey
     try {
-      await onUpdate(editingId, {
-        expense_date: editValues.expense_date,
-        amount: Number(editValues.amount),
-        description: editValues.description,
-      })
-      if (goToNext) {
-        const idx = expenses.findIndex((e) => e.id === editingId)
-        const next = idx !== -1 && idx < expenses.length - 1 ? expenses[idx + 1] : null
-        if (next) {
-          setEditingId(next.id)
-          setEditValues({
-            expense_date: next.expense_date,
-            amount: String(next.amount),
-            description: next.description,
-          })
-        } else {
-          setEditingId(null)
-          setEditValues(EMPTY)
-          setTimeout(() => newDateRef.current?.focus(), 50)
-        }
+      if (editingTempExpense) {
+        await onAdd({
+          expense_date: editValues.expense_date,
+          amount: Number(editValues.amount),
+          description: editValues.description,
+        })
+        onTempSaved(editingTempExpense.expense_date)
       } else {
-        setEditingId(null)
+        await onUpdate(editingKey, {
+          expense_date: editValues.expense_date,
+          amount: Number(editValues.amount),
+          description: editValues.description,
+        })
+      }
+      if (goToNext) {
+        goToNextRow(currentKey)
+      } else {
+        setEditingKey(null)
         setEditValues(EMPTY)
       }
     } catch {
@@ -124,6 +181,7 @@ export function ExpenseTable({ summary, onAdd, onUpdate, onDelete }: Props) {
   }
 
   const total = expenses.reduce((sum, e) => sum + e.amount, 0)
+  const hasTempRows = tempExpenses.length > 0
 
   return (
     <div>
@@ -156,8 +214,9 @@ export function ExpenseTable({ summary, onAdd, onUpdate, onDelete }: Props) {
             </tr>
           </thead>
           <tbody>
+            {/* Real expenses */}
             {expenses.map((expense) => {
-              const isEditing = editingId === expense.id
+              const isEditing = editingKey === expense.id
               return (
                 <tr
                   key={expense.id}
@@ -169,13 +228,7 @@ export function ExpenseTable({ summary, onAdd, onUpdate, onDelete }: Props) {
                       : "hover:bg-gray-50 cursor-pointer"
                   }`}
                   onClick={() => {
-                    if (!isEditing && !isFixed) {
-                      startEdit(expense.id, {
-                        expense_date: expense.expense_date,
-                        amount: String(expense.amount),
-                        description: expense.description,
-                      })
-                    }
+                    if (!isEditing && !isFixed) startEditReal(expense)
                   }}
                 >
                   {isEditing ? (
@@ -222,10 +275,7 @@ export function ExpenseTable({ summary, onAdd, onUpdate, onDelete }: Props) {
                           disabled={isSaving}
                         />
                       </td>
-                      <td
-                        className="px-2 py-1.5"
-                        onClick={(e) => e.stopPropagation()}
-                      >
+                      <td className="px-2 py-1.5" onClick={(e) => e.stopPropagation()}>
                         <div className="flex gap-1">
                           <button
                             onClick={() => saveEdit(false)}
@@ -247,7 +297,7 @@ export function ExpenseTable({ summary, onAdd, onUpdate, onDelete }: Props) {
                   ) : (
                     <>
                       <td className="px-3 py-3 text-base text-gray-700 whitespace-nowrap">
-                        {formatDate(expense.expense_date)}
+                        {(() => { const { label, day, dayColor } = formatDate(expense.expense_date); return <>{label} <span className={`text-sm ${dayColor}`}>({day})</span></> })()}
                       </td>
                       <td className="px-3 py-3 text-base text-gray-900 text-right whitespace-nowrap">
                         {expense.amount.toLocaleString()}円
@@ -256,10 +306,7 @@ export function ExpenseTable({ summary, onAdd, onUpdate, onDelete }: Props) {
                         {expense.description}
                       </td>
                       {!isFixed && (
-                        <td
-                          className="px-3 py-3"
-                          onClick={(e) => e.stopPropagation()}
-                        >
+                        <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
                           <button
                             onClick={() => onDelete(expense.id)}
                             className="text-red-500 text-sm px-2 py-1 rounded hover:bg-red-50 transition-colors"
@@ -274,8 +321,104 @@ export function ExpenseTable({ summary, onAdd, onUpdate, onDelete }: Props) {
               )
             })}
 
-            {/* 新規入力行（未確定時のみ） */}
-            {!isFixed && (
+            {/* Temp expenses (virtual rows, not yet saved) */}
+            {!isFixed && tempExpenses.map((temp) => {
+              const isEditing = editingKey === temp.expense_date
+              return (
+                <tr
+                  key={`temp-${temp.expense_date}`}
+                  className={`border-b border-gray-100 transition-colors ${
+                    isEditing ? "bg-blue-50" : "hover:bg-gray-50 cursor-pointer"
+                  }`}
+                  onClick={() => {
+                    if (!isEditing) startEditTemp(temp)
+                  }}
+                >
+                  {isEditing ? (
+                    <>
+                      <td className="px-2 py-1.5">
+                        <input
+                          ref={editDateRef}
+                          type="date"
+                          value={editValues.expense_date}
+                          onChange={(e) =>
+                            setEditValues((v) => ({ ...v, expense_date: e.target.value }))
+                          }
+                          onKeyDown={handleEditKeyDown}
+                          className={inputClass}
+                          style={{ fontSize: "16px" }}
+                          disabled={isSaving}
+                        />
+                      </td>
+                      <td className="px-2 py-1.5">
+                        <input
+                          type="number"
+                          value={editValues.amount}
+                          onChange={(e) =>
+                            setEditValues((v) => ({ ...v, amount: e.target.value }))
+                          }
+                          onKeyDown={handleEditKeyDown}
+                          placeholder="金額"
+                          className={`${inputClass} text-right`}
+                          style={{ fontSize: "16px" }}
+                          min={1}
+                          step={1}
+                          disabled={isSaving}
+                        />
+                      </td>
+                      <td className="px-2 py-1.5">
+                        <input
+                          type="text"
+                          value={editValues.description}
+                          onChange={(e) =>
+                            setEditValues((v) => ({ ...v, description: e.target.value }))
+                          }
+                          onKeyDown={handleEditKeyDown}
+                          placeholder="内容・区間（例: 渋谷→新宿）"
+                          className={inputClass}
+                          style={{ fontSize: "16px" }}
+                          disabled={isSaving}
+                        />
+                      </td>
+                      <td className="px-2 py-1.5" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex gap-1">
+                          <button
+                            onClick={() => saveEdit(false)}
+                            disabled={isSaving || !isValid(editValues)}
+                            className="px-2 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                          >
+                            {isSaving ? "..." : "保存"}
+                          </button>
+                          <button
+                            onClick={cancelEdit}
+                            disabled={isSaving}
+                            className="px-2 py-1 border border-gray-300 text-gray-600 text-sm rounded hover:bg-gray-50 disabled:opacity-50 transition-colors"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      </td>
+                    </>
+                  ) : (
+                    <>
+                      <td className="px-3 py-3 text-base text-gray-400 whitespace-nowrap">
+                        {(() => { const { label, day, dayColor } = formatDate(temp.expense_date); return <>{label} <span className={`text-sm ${dayColor || "text-gray-400"}`}>({day})</span></> })()}
+                      </td>
+                      <td className="px-3 py-3 text-base text-gray-300 text-right whitespace-nowrap">
+                        —
+                      </td>
+                      <td className="px-3 py-3 text-base text-gray-300">
+                        —
+                      </td>
+                      <td className="px-3 py-3" />
+                    </>
+                  )}
+                </tr>
+              )
+            })}
+
+            {/* New input row (shown when no temp rows, or always for extra entries) */}
+            {!isFixed && !hasTempRows && (
               <tr className="border-b border-gray-100 bg-gray-50/60">
                 <td className="px-2 py-1.5">
                   <input
