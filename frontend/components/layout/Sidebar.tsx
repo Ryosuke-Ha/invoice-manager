@@ -27,7 +27,7 @@ export function Sidebar() {
     <aside className="fixed top-0 left-0 h-screen w-60 bg-white border-r border-gray-200 flex flex-col z-30">
       {/* ① App name */}
       <div className="px-6 py-5 border-b border-gray-200">
-        <span className="text-lg font-bold text-gray-900">invoice-manager</span>
+        <span className="text-lg font-bold text-primary-600">invoice-manager</span>
       </div>
 
       {/* ② Navigation */}
@@ -39,10 +39,10 @@ export function Sidebar() {
             <Link
               key={item.href}
               href={item.href}
-              className={`flex items-center gap-3 px-5 py-3.5 text-base transition-colors border-l-4 ${
+              className={`flex items-center gap-3 px-5 py-3.5 text-base transition-colors border-l-2 ${
                 isActive
-                  ? "bg-green-50 text-green-700 font-semibold border-green-600"
-                  : "text-gray-700 hover:bg-gray-50 border-transparent"
+                  ? "bg-primary-50 text-primary-700 font-semibold border-primary-500"
+                  : "text-gray-600 hover:bg-gray-50 border-transparent"
               }`}
             >
               <Icon size={20} />
@@ -63,7 +63,7 @@ export function Sidebar() {
               className="w-10 h-10 rounded-full object-cover"
             />
           ) : (
-            <div className="w-10 h-10 rounded-full bg-green-600 flex items-center justify-center text-white text-base font-semibold">
+            <div className="w-10 h-10 rounded-full bg-primary-500 flex items-center justify-center text-white text-base font-semibold">
               {initial.toUpperCase()}
             </div>
           )}

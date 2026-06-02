@@ -6,6 +6,8 @@ import { useAccountTitles } from "@/hooks/useAccountTitles"
 import { AccountTitleList } from "@/components/account-title/AccountTitleList"
 import { AccountTitleForm, AccountTitleFormValues } from "@/components/account-title/AccountTitleForm"
 import { AccountTitle } from "@/types/account_title"
+import { PageHeader } from "@/components/ui/PageHeader"
+import { Button } from "@/components/ui/Button"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
@@ -84,15 +86,14 @@ export default function AccountTitlesPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-bold text-gray-900">勘定科目管理</h1>
-        <button
-          onClick={openAdd}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg text-base font-medium hover:bg-blue-700 transition-colors"
-        >
-          新規追加
-        </button>
-      </div>
+      <PageHeader
+        title="勘定科目管理"
+        action={
+          <Button variant="primary" onClick={openAdd}>
+            新規追加
+          </Button>
+        }
+      />
 
       {/* Show inactive toggle */}
       <div className="flex items-center justify-between bg-white border border-gray-200 rounded-lg px-4 py-3 mb-4">

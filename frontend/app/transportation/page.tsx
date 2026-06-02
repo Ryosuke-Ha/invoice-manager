@@ -12,6 +12,7 @@ import {
 } from "@/hooks/useTransportation"
 import { useAccountTitles } from "@/hooks/useAccountTitles"
 import { ExpenseTable } from "@/components/transportation/ExpenseTable"
+import { Button } from "@/components/ui/Button"
 
 const now = new Date()
 const DEFAULT_YEAR = now.getFullYear()
@@ -95,25 +96,28 @@ export default function TransportationPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-900 mb-4">月次交通費</h1>
-
-      {/* Year/month navigation */}
-      <div className="flex items-center justify-between mb-6 bg-white border border-gray-200 rounded-lg p-3">
-        <button
-          onClick={prevMonth}
-          className="text-blue-600 text-base px-3 py-2 rounded-lg hover:bg-blue-50 transition-colors"
-        >
-          ◀ 前月
-        </button>
-        <span className="text-lg font-bold text-gray-900">
-          {year}年{month}月
-        </span>
-        <button
-          onClick={nextMonth}
-          className="text-blue-600 text-base px-3 py-2 rounded-lg hover:bg-blue-50 transition-colors"
-        >
-          翌月 ▶
-        </button>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">月次交通費</h1>
+        {/* Year/month navigation */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={prevMonth}
+            className="p-2 rounded-md text-gray-600 hover:bg-gray-100 transition-colors"
+            aria-label="前月"
+          >
+            ◀
+          </button>
+          <span className="text-base font-semibold text-gray-900 min-w-[7rem] text-center">
+            {year}年{month}月
+          </span>
+          <button
+            onClick={nextMonth}
+            className="p-2 rounded-md text-gray-600 hover:bg-gray-100 transition-colors"
+            aria-label="翌月"
+          >
+            ▶
+          </button>
+        </div>
       </div>
 
       {isLoading && (
@@ -154,25 +158,27 @@ export default function TransportationPage() {
             {summary?.is_fixed ? (
               <div>
                 <div className="flex items-center gap-2 mb-3">
-                  <span className="inline-block bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-medium">
+                  <span className="inline-block bg-primary-100 text-primary-700 px-3 py-1 rounded text-sm font-medium">
                     確定済み
                   </span>
                 </div>
-                <button
+                <Button
+                  variant="secondary"
                   onClick={() => { setShowMergeModal(true); setMergeError(null) }}
-                  className="w-full bg-blue-600 text-white px-4 py-3 rounded-lg text-base font-medium hover:bg-blue-700 transition-colors"
+                  className="w-full"
                 >
                   請求書に反映
-                </button>
+                </Button>
               </div>
             ) : (
-              <button
+              <Button
+                variant="primary"
                 onClick={() => { setShowFixModal(true); setFixError(null) }}
                 disabled={!summary || summary.expenses.length === 0}
-                className="w-full bg-orange-600 text-white px-4 py-3 rounded-lg text-base font-medium hover:bg-orange-700 transition-colors disabled:opacity-50"
+                className="w-full"
               >
                 月次確定
-              </button>
+              </Button>
             )}
           </div>
         </>

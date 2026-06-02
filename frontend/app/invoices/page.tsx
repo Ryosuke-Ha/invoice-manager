@@ -3,7 +3,9 @@
 import { useState } from "react"
 import Link from "next/link"
 import { useInvoices } from "@/hooks/useInvoices"
-import { InvoiceCard } from "@/components/invoice/InvoiceCard"
+import { StatusBadge } from "@/components/invoice/StatusBadge"
+import { PageHeader } from "@/components/ui/PageHeader"
+import { Button } from "@/components/ui/Button"
 import { InvoiceStatus, STATUS_LABELS } from "@/types/invoice"
 
 type FilterTab = "all" | InvoiceStatus
@@ -17,6 +19,12 @@ const FILTER_TABS: { label: string; value: FilterTab }[] = [
   { label: STATUS_LABELS.paid, value: "paid" },
 ]
 
+function isOverdue(dueDateStr: string): boolean {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  return new Date(dueDateStr) < today
+}
+
 export default function InvoicesPage() {
   const [activeTab, setActiveTab] = useState<FilterTab>("all")
   const status = activeTab === "all" ? undefined : activeTab
@@ -24,26 +32,25 @@ export default function InvoicesPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-bold text-gray-900">請求書</h1>
-        <Link
-          href="/invoices/new"
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg text-base font-medium hover:bg-blue-700 transition-colors"
-        >
-          新規作成
-        </Link>
-      </div>
+      <PageHeader
+        title="請求書"
+        action={
+          <Link href="/invoices/new">
+            <Button variant="primary">新規作成</Button>
+          </Link>
+        }
+      />
 
       {/* Status filter tabs */}
-      <div className="flex gap-1 overflow-x-auto pb-2 mb-4">
+      <div className="flex overflow-x-auto border-b border-gray-200 mb-4">
         {FILTER_TABS.map((tab) => (
           <button
             key={tab.value}
             onClick={() => setActiveTab(tab.value)}
-            className={`flex-shrink-0 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+            className={`flex-shrink-0 px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px whitespace-nowrap ${
               activeTab === tab.value
-                ? "bg-blue-600 text-white"
-                : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-50"
+                ? "border-primary-500 text-primary-600"
+                : "border-transparent text-gray-500 hover:text-gray-700"
             }`}
           >
             {tab.label}
@@ -71,10 +78,70 @@ export default function InvoicesPage() {
               請求書がありません
             </p>
           ) : (
-            <div className="flex flex-col gap-3">
-              {invoices.map((invoice) => (
-                <InvoiceCard key={invoice.id} invoice={invoice} />
-              ))}
+            <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-base">
+                  <thead>
+                    <tr className="bg-gray-50 border-b border-gray-200">
+                      <th className="text-left px-4 py-3 text-sm font-medium text-gray-500">
+                        タイトル
+                      </th>
+                      <th className="text-right px-4 py-3 text-sm font-medium text-gray-500">
+                        金額
+                      </th>
+                      <th className="text-left px-4 py-3 text-sm font-medium text-gray-500 whitespace-nowrap">
+                        発生日
+                      </th>
+                      <th className="text-left px-4 py-3 text-sm font-medium text-gray-500 whitespace-nowrap">
+                        支払期日
+                      </th>
+                      <th className="text-left px-4 py-3 text-sm font-medium text-gray-500">
+                        ステータス
+                      </th>
+                      <th className="px-4 py-3" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {invoices.map((invoice) => {
+                      const overdue = isOverdue(invoice.due_date)
+                      return (
+                        <tr
+                          key={invoice.id}
+                          className={`border-b border-gray-100 last:border-0 transition-colors ${
+                            invoice.status === "overdue"
+                              ? "bg-red-50 hover:bg-red-100"
+                              : "hover:bg-gray-50"
+                          }`}
+                        >
+                          <td className="px-4 py-3 text-gray-900 font-medium">
+                            {invoice.title}
+                          </td>
+                          <td className="px-4 py-3 text-right text-gray-900 whitespace-nowrap">
+                            ¥{invoice.amount.toLocaleString()}
+                          </td>
+                          <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
+                            {invoice.issue_date}
+                          </td>
+                          <td className={`px-4 py-3 whitespace-nowrap ${overdue ? "text-red-600 font-medium" : "text-gray-600"}`}>
+                            {invoice.due_date}
+                          </td>
+                          <td className="px-4 py-3">
+                            <StatusBadge status={invoice.status} />
+                          </td>
+                          <td className="px-4 py-3">
+                            <Link
+                              href={`/invoices/${invoice.id}`}
+                              className="text-primary-600 text-sm font-medium hover:text-primary-700 transition-colors"
+                            >
+                              詳細
+                            </Link>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
         </>

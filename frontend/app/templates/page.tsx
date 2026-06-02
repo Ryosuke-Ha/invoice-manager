@@ -5,6 +5,8 @@ import { useTemplates } from "@/hooks/useTemplates"
 import { TemplateList } from "@/components/template/TemplateList"
 import { TemplateForm, TemplateFormValues } from "@/components/template/TemplateForm"
 import { InvoiceTemplate } from "@/types/template"
+import { PageHeader } from "@/components/ui/PageHeader"
+import { Button } from "@/components/ui/Button"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
@@ -82,15 +84,14 @@ export default function TemplatesPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-bold text-gray-900">テンプレート管理</h1>
-        <button
-          onClick={openAdd}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg text-base font-medium hover:bg-blue-700 transition-colors"
-        >
-          新規追加
-        </button>
-      </div>
+      <PageHeader
+        title="テンプレート管理"
+        action={
+          <Button variant="primary" onClick={openAdd}>
+            新規追加
+          </Button>
+        }
+      />
 
       {isLoading && (
         <p className="text-gray-400 text-base animate-pulse text-center py-8">読み込み中...</p>
