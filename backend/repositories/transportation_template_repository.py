@@ -1,3 +1,4 @@
+from typing import Optional
 from uuid import UUID
 
 from sqlalchemy.orm import Session
@@ -13,7 +14,7 @@ def find_all(db: Session) -> list[TransportationTemplate]:
     )
 
 
-def find_by_id(db: Session, id: UUID) -> TransportationTemplate | None:
+def find_by_id(db: Session, id: UUID) -> Optional[TransportationTemplate]:
     return (
         db.query(TransportationTemplate)
         .filter(TransportationTemplate.id == id)
