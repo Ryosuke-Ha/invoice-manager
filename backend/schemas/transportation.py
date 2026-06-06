@@ -91,3 +91,8 @@ class SummaryResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class GenerateFromTemplateResponse(BaseModel):
+    generated: int
+    summary: SummaryResponse
