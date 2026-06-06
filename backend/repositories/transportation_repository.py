@@ -9,19 +9,18 @@ from models import MonthlyTransportationSummary, TransportationExpense
 def find_by_year_month(
     db: Session, year: int, month: int
 ):
-    return (
+    summary = (
         db.query(MonthlyTransportationSummary)
-        .options(
-            joinedload(MonthlyTransportationSummary.expenses).order_by(
-                TransportationExpense.expense_date.asc()
-            )
-        )
+        .options(joinedload(MonthlyTransportationSummary.expenses))
         .filter(
             MonthlyTransportationSummary.year == year,
             MonthlyTransportationSummary.month == month,
         )
         .first()
     )
+    if summary:
+        summary.expenses.sort(key=lambda e: e.expense_date)
+    return summary
 
 
 def find_expense_by_id(db: Session, expense_id: UUID):
