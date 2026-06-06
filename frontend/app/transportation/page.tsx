@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import {
   useTransportation,
@@ -13,6 +13,7 @@ import {
   useCreateTransportationTemplate,
   useUpdateTransportationTemplate,
   useDeleteTransportationTemplate,
+  useGenerateFromTemplate,
 } from "@/hooks/useTransportation"
 import { useAccountTitles } from "@/hooks/useAccountTitles"
 import { ExpenseTable, TempExpense } from "@/components/transportation/ExpenseTable"
@@ -85,30 +86,56 @@ export default function TransportationPage() {
   const { mergeToInvoice } = useMergeToInvoice(year, month)
   const { accountTitles } = useAccountTitles(true)
 
-  const { templates, mutate: mutateTemplates } = useTransportationTemplates()
+  const { templates, isLoading: isTemplatesLoading, mutate: mutateTemplates } = useTransportationTemplates()
+  const { generateFromTemplate } = useGenerateFromTemplate(year, month)
   const { createTemplate } = useCreateTransportationTemplate()
   const { updateTemplate } = useUpdateTransportationTemplate()
   const { deleteTemplate } = useDeleteTransportationTemplate()
 
   const [tempExpenses, setTempExpenses] = useState<TempExpense[]>([])
+  const [isGenerating, setIsGenerating] = useState(false)
+  const generatedKeyRef = useRef<string | null>(null)
 
-  // Reset temp rows on year/month change
+  // Reset temp rows and generated key on year/month change
   useEffect(() => {
     setTempExpenses([])
+    generatedKeyRef.current = null
   }, [year, month])
 
-  // Generate temp rows when the month has no saved expenses
+  // Auto-generate from template when month has no expenses and templates exist
   useEffect(() => {
+    const key = `${year}-${month}`
     if (
       !isLoading &&
+      !isTemplatesLoading &&
       !error &&
       summary &&
       summary.expenses.length === 0 &&
-      tempExpenses.length === 0
+      templates.length > 0 &&
+      generatedKeyRef.current !== key
     ) {
-      setTempExpenses(generateTempExpenses(year, month, templates))
+      generatedKeyRef.current = key
+      setIsGenerating(true)
+      generateFromTemplate()
+        .catch(() => {})
+        .finally(() => setIsGenerating(false))
     }
-  }, [year, month, isLoading, error, summary?.expenses.length, tempExpenses.length, templates])
+  }, [year, month, isLoading, isTemplatesLoading, error, summary?.expenses.length, templates.length])
+
+  // Generate temp rows when month has no expenses and no templates
+  useEffect(() => {
+    if (
+      !isLoading &&
+      !isTemplatesLoading &&
+      !error &&
+      summary &&
+      summary.expenses.length === 0 &&
+      tempExpenses.length === 0 &&
+      templates.length === 0
+    ) {
+      setTempExpenses(generateTempExpenses(year, month, []))
+    }
+  }, [year, month, isLoading, isTemplatesLoading, error, summary?.expenses.length, tempExpenses.length, templates.length])
 
   const handleTempSaved = (expense_date: string) => {
     setTempExpenses((prev) => prev.filter((t) => t.expense_date !== expense_date))
@@ -270,7 +297,7 @@ export default function TransportationPage() {
     editForm.description.trim() !== ""
 
   return (
-    <div>
+    <div className="relative">
       <div className="flex items-center justify-between mb-6 pr-14 lg:pr-0">
         <h1 className="text-2xl font-bold text-gray-900">月次交通費</h1>
         <div className="flex items-center gap-2">
@@ -495,6 +522,14 @@ export default function TransportationPage() {
           </div>
         )}
       </div>
+
+      {isGenerating && (
+        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-40">
+          <div className="bg-white rounded-lg px-6 py-4 text-base font-medium text-gray-700 shadow-lg">
+            交通費を自動生成中...
+          </div>
+        </div>
+      )}
 
       {isLoading && (
         <p className="text-gray-400 text-base animate-pulse text-center py-8">

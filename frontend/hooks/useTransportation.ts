@@ -216,6 +216,31 @@ export function useDeleteTransportationTemplate() {
   return { deleteTemplate }
 }
 
+interface GenerateFromTemplateResult {
+  generated: number
+  summary: MonthlyTransportationSummary
+}
+
+export function useGenerateFromTemplate(year: number, month: number) {
+  const { mutate } = useSWRConfig()
+
+  const generateFromTemplate = async (): Promise<MonthlyTransportationSummary> => {
+    const res = await fetch(
+      `${API_URL}/api/transportation/${year}/${month}/generate-from-template`,
+      { method: "POST" }
+    )
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({})) as { detail?: string }
+      throw new Error(err.detail ?? `HTTP ${res.status}`)
+    }
+    const result = await res.json() as GenerateFromTemplateResult
+    await mutate(summaryKey(year, month), result.summary, { revalidate: false })
+    return result.summary
+  }
+
+  return { generateFromTemplate }
+}
+
 export function useMergeToInvoice(year: number, month: number) {
   const mergeToInvoice = async (accountTitleId: string | null): Promise<Invoice> => {
     const res = await fetch(

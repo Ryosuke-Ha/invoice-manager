@@ -1,5 +1,7 @@
+import calendar
 import csv
 import io
+from datetime import date
 from typing import Optional
 from uuid import UUID
 
@@ -21,6 +23,7 @@ from schemas.invoice import InvoiceResponse
 from schemas.transportation import (
     ExpenseCreate,
     ExpenseUpdate,
+    GenerateFromTemplateResponse,
     SummaryResponse,
     TransportationTemplateCreate,
     TransportationTemplateResponse,
@@ -241,6 +244,61 @@ def delete_expense(
 
     db.delete(expense)
     db.commit()
+
+
+@router.post(
+    "/{year}/{month}/generate-from-template",
+    response_model=GenerateFromTemplateResponse,
+)
+def generate_from_template(
+    year: int,
+    month: int,
+    db: Session = Depends(get_db),
+) -> GenerateFromTemplateResponse:
+    summary = repo.find_by_year_month(db, year, month)
+    if summary is not None and len(summary.expenses) > 0:
+        raise HTTPException(
+            status_code=400,
+            detail="既にレコードが存在します。自動生成はレコードが0件の月のみ実行可能です。",
+        )
+
+    templates = tmpl_repo.find_all(db)
+    if not templates:
+        return GenerateFromTemplateResponse(
+            generated=0,
+            summary=SummaryResponse(year=year, month=month),
+        )
+
+    template_map = {t.day_of_week: t for t in templates}
+
+    if summary is None:
+        summary = MonthlyTransportationSummary(year=year, month=month)
+        db.add(summary)
+        db.flush()
+
+    days_in_month = calendar.monthrange(year, month)[1]
+    count = 0
+    for day in range(1, days_in_month + 1):
+        d = date(year, month, day)
+        dow = d.weekday()
+        if dow in template_map:
+            tmpl = template_map[dow]
+            expense = TransportationExpense(
+                summary_id=summary.id,
+                expense_date=d,
+                amount=tmpl.amount,
+                description=tmpl.description,
+            )
+            db.add(expense)
+            count += 1
+
+    db.commit()
+
+    updated = repo.find_by_year_month(db, year, month)
+    return GenerateFromTemplateResponse(
+        generated=count,
+        summary=_summary_response(updated),
+    )
 
 
 @router.post("/{year}/{month}/fix", response_model=SummaryResponse)
