@@ -11,7 +11,11 @@ def find_by_year_month(
 ):
     return (
         db.query(MonthlyTransportationSummary)
-        .options(joinedload(MonthlyTransportationSummary.expenses))
+        .options(
+            joinedload(MonthlyTransportationSummary.expenses).order_by(
+                TransportationExpense.expense_date.asc()
+            )
+        )
         .filter(
             MonthlyTransportationSummary.year == year,
             MonthlyTransportationSummary.month == month,
