@@ -4,15 +4,12 @@ import { useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import { useInvoice, useUpdateInvoiceStatus, useDeleteInvoice } from "@/hooks/useInvoices"
+import { useToast } from "@/hooks/useToast"
 import { StatusBadge } from "@/components/invoice/StatusBadge"
 import { Card } from "@/components/ui/Card"
 import { Button } from "@/components/ui/Button"
 import { PageHeader } from "@/components/ui/PageHeader"
-import {
-  InvoiceStatus,
-  STATUS_LABELS,
-  VALID_NEXT_STATUSES,
-} from "@/types/invoice"
+import { InvoiceStatus, STATUS_LABELS } from "@/types/invoice"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
@@ -20,6 +17,26 @@ function isOverdue(dueDateStr: string): boolean {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   return new Date(dueDateStr) < today
+}
+
+type ActionConfig = {
+  label: string
+  variant: "primary" | "secondary"
+  nextStatus?: InvoiceStatus
+  action?: "sync-freee"
+}
+
+const STATUS_ACTIONS: Partial<Record<InvoiceStatus, ActionConfig[]>> = {
+  draft: [{ label: "送付済みにする", variant: "primary", nextStatus: "sent" }],
+  sent: [{ label: "支払済みにする", variant: "primary", nextStatus: "paid" }],
+  reminding: [{ label: "支払済みにする", variant: "primary", nextStatus: "paid" }],
+  overdue: [{ label: "支払済みにする", variant: "primary", nextStatus: "paid" }],
+  paid: [
+    { label: "freee連携する", variant: "primary", action: "sync-freee" },
+    { label: "freee連携済みにする", variant: "secondary", nextStatus: "synced_to_freee" },
+  ],
+  synced_to_freee: [{ label: "対応済みにする", variant: "secondary", nextStatus: "completed" }],
+  completed: [],
 }
 
 export default function InvoiceDetailPage() {
@@ -30,11 +47,11 @@ export default function InvoiceDetailPage() {
   const { invoice, isLoading, error, mutate } = useInvoice(id)
   const { updateStatus } = useUpdateInvoiceStatus()
   const { deleteInvoice } = useDeleteInvoice()
+  const { showToast } = useToast()
 
   const [showDeleteModal, setShowDeleteModal] = useState(false)
-  const [actionError, setActionError] = useState<string | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
-  const [isSyncing, setIsSyncing] = useState(false)
+  const [loadingAction, setLoadingAction] = useState<string | null>(null)
   const [editingDueDate, setEditingDueDate] = useState(false)
   const [dueDateInput, setDueDateInput] = useState("")
   const [isSavingDueDate, setIsSavingDueDate] = useState(false)
@@ -59,50 +76,46 @@ export default function InvoiceDetailPage() {
   const isDraft = invoice.status === "draft"
   const canEditDueDate =
     invoice.status !== "synced_to_freee" && invoice.status !== "completed"
-  const canSyncFreee =
-    invoice.status === "paid" && invoice.freee_sync_status === "unsynced"
-  const nextStatuses = VALID_NEXT_STATUSES[invoice.status]
+  const actions = STATUS_ACTIONS[invoice.status] ?? []
 
-  const handleStatusChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const next = e.target.value as InvoiceStatus
-    setActionError(null)
+  const handleAction = async (cfg: ActionConfig) => {
+    const key = cfg.action ?? cfg.nextStatus ?? ""
+    setLoadingAction(key)
     try {
-      await updateStatus(id, next)
-      await mutate()
-    } catch (err) {
-      setActionError(err instanceof Error ? err.message : "ステータス更新に失敗しました")
-    }
-  }
-
-  const handleSyncFreee = async () => {
-    setIsSyncing(true)
-    setActionError(null)
-    try {
-      const res = await fetch(`${API_URL}/api/invoices/${id}/sync-freee`, {
-        method: "POST",
-      })
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}))
-        throw new Error(body.detail ?? `HTTP ${res.status}`)
+      if (cfg.action === "sync-freee") {
+        const res = await fetch(`${API_URL}/api/invoices/${id}/sync-freee`, {
+          method: "POST",
+        })
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({})) as { detail?: string }
+          throw new Error(body.detail ?? `HTTP ${res.status}`)
+        }
+      } else if (cfg.nextStatus) {
+        await updateStatus(id, cfg.nextStatus)
       }
       await mutate()
+      showToast({
+        message: `ステータスを「${cfg.action === "sync-freee" ? STATUS_LABELS.synced_to_freee : STATUS_LABELS[cfg.nextStatus!]}」に更新しました`,
+        variant: "success",
+      })
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : "freee連携に失敗しました")
+      showToast({
+        message: err instanceof Error ? err.message : "更新に失敗しました",
+        variant: "error",
+      })
     } finally {
-      setIsSyncing(false)
+      setLoadingAction(null)
     }
   }
 
   const handleStartEditDueDate = () => {
     setDueDateInput(invoice.due_date)
     setEditingDueDate(true)
-    setActionError(null)
   }
 
   const handleSaveDueDate = async () => {
     if (!dueDateInput) return
     setIsSavingDueDate(true)
-    setActionError(null)
     try {
       const res = await fetch(`${API_URL}/api/invoices/${id}/due-date`, {
         method: "PATCH",
@@ -115,8 +128,12 @@ export default function InvoiceDetailPage() {
       }
       await mutate()
       setEditingDueDate(false)
+      showToast({ message: "支払期日を更新しました", variant: "success" })
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : "支払期日の更新に失敗しました")
+      showToast({
+        message: err instanceof Error ? err.message : "支払期日の更新に失敗しました",
+        variant: "error",
+      })
     } finally {
       setIsSavingDueDate(false)
     }
@@ -124,12 +141,14 @@ export default function InvoiceDetailPage() {
 
   const handleDelete = async () => {
     setIsDeleting(true)
-    setActionError(null)
     try {
       await deleteInvoice(id)
       router.push("/invoices")
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : "削除に失敗しました")
+      showToast({
+        message: err instanceof Error ? err.message : "削除に失敗しました",
+        variant: "error",
+      })
       setShowDeleteModal(false)
       setIsDeleting(false)
     }
@@ -233,52 +252,33 @@ export default function InvoiceDetailPage() {
         </dl>
       </Card>
 
-      {actionError && (
-        <p className="mb-3 text-red-600 text-base">{actionError}</p>
-      )}
-
-      {/* Status change */}
-      {nextStatuses.length > 0 && (
-        <div className="mb-4">
-          <label className="block text-sm text-gray-600 mb-1">
-            ステータス変更
-          </label>
-          <select
-            onChange={handleStatusChange}
-            defaultValue=""
-            className="w-full border border-gray-300 rounded-md px-3 py-2 text-base bg-white focus:outline-none focus:ring-2 focus:ring-primary-500"
-            style={{ fontSize: "16px" }}
-          >
-            <option value="" disabled>
-              変更先を選択...
-            </option>
-            {nextStatuses.map((s) => (
-              <option key={s} value={s}>
-                {STATUS_LABELS[s]}
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
-
       <div className="flex flex-col gap-3">
+        {/* Status action buttons */}
+        {actions.map((cfg) => {
+          const key = cfg.action ?? cfg.nextStatus ?? ""
+          return (
+            <Button
+              key={key}
+              variant={cfg.variant}
+              onClick={() => handleAction(cfg)}
+              disabled={loadingAction !== null}
+              className="w-full"
+            >
+              {loadingAction === key ? "処理中..." : cfg.label}
+            </Button>
+          )
+        })}
+
+        {/* Edit button (draft only) */}
         {isDraft && (
           <Link href={`/invoices/${id}/edit`}>
-            <Button variant="primary" className="w-full">
+            <Button variant="secondary" className="w-full">
               編集
             </Button>
           </Link>
         )}
-        {canSyncFreee && (
-          <Button
-            variant="secondary"
-            onClick={handleSyncFreee}
-            disabled={isSyncing}
-            className="w-full"
-          >
-            {isSyncing ? "連携中..." : "freee連携"}
-          </Button>
-        )}
+
+        {/* Delete button (draft only) */}
         {isDraft && (
           <Button
             variant="danger"
