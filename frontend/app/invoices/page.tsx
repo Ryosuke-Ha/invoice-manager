@@ -8,15 +8,18 @@ import { PageHeader } from "@/components/ui/PageHeader"
 import { Button } from "@/components/ui/Button"
 import { InvoiceStatus, STATUS_LABELS } from "@/types/invoice"
 
-type FilterTab = "all" | InvoiceStatus
+type FilterTab = "active" | "all" | InvoiceStatus
+
+const EXCLUDED_FROM_ACTIVE: InvoiceStatus[] = ["synced_to_freee", "completed"]
 
 const FILTER_TABS: { label: string; value: FilterTab }[] = [
-  { label: "全件", value: "all" },
+  { label: "未対応", value: "active" },
   { label: STATUS_LABELS.draft, value: "draft" },
   { label: STATUS_LABELS.sent, value: "sent" },
   { label: STATUS_LABELS.reminding, value: "reminding" },
   { label: STATUS_LABELS.overdue, value: "overdue" },
   { label: STATUS_LABELS.paid, value: "paid" },
+  { label: "全件", value: "all" },
 ]
 
 function isOverdue(dueDateStr: string): boolean {
@@ -26,9 +29,16 @@ function isOverdue(dueDateStr: string): boolean {
 }
 
 export default function InvoicesPage() {
-  const [activeTab, setActiveTab] = useState<FilterTab>("all")
-  const status = activeTab === "all" ? undefined : activeTab
-  const { invoices, isLoading, error } = useInvoices(status)
+  const [activeTab, setActiveTab] = useState<FilterTab>("active")
+  const { invoices: allInvoices, isLoading, error } = useInvoices()
+
+  const invoices = (() => {
+    if (activeTab === "active") {
+      return allInvoices.filter((inv) => !EXCLUDED_FROM_ACTIVE.includes(inv.status))
+    }
+    if (activeTab === "all") return allInvoices
+    return allInvoices.filter((inv) => inv.status === activeTab)
+  })()
 
   return (
     <div>

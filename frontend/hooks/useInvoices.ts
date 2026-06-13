@@ -17,11 +17,11 @@ const fetcherOne = (url: string): Promise<Invoice> =>
     return res.json() as Promise<Invoice>
   })
 
-export function useInvoices(status?: InvoiceStatus) {
-  const url = status
-    ? `${API_URL}/api/invoices?status=${status}`
-    : `${API_URL}/api/invoices`
-  const { data, error, isLoading, mutate } = useSWR<Invoice[]>(url, fetcher)
+export function useInvoices() {
+  const { data, error, isLoading, mutate } = useSWR<Invoice[]>(
+    `${API_URL}/api/invoices`,
+    fetcher
+  )
   return { invoices: data ?? [], error, isLoading, mutate }
 }
 
