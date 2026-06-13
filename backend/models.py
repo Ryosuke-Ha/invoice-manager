@@ -1,7 +1,7 @@
 import uuid
 
 from sqlalchemy import (
-    Boolean, Column, Date, DateTime, ForeignKey,
+    BigInteger, Boolean, Column, Date, DateTime, ForeignKey,
     Integer, String, UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import UUID
@@ -54,7 +54,7 @@ class Invoice(Base):
     paid_date = Column(Date, nullable=True)
     status = Column(String(50), nullable=False, default="draft")
     freee_sync_status = Column(String(50), nullable=False, default="unsynced")
-    freee_deal_id = Column(Integer, nullable=True)
+    freee_deal_id = Column(BigInteger, nullable=True)
     account_title_id = Column(
         UUID(as_uuid=True), ForeignKey("account_titles.id"), nullable=True
     )
