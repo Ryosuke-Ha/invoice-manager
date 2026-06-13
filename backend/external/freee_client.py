@@ -125,10 +125,13 @@ class FreeeClient:
                 detail["account_item_id"] = account_title.freee_account_item_id
                 detail["tax_code"] = account_title.freee_tax_code
 
+            deal_type = "expense" if (
+                account_title and account_title.account_type == "expense"
+            ) else "income"
             payload = {
                 "issue_date": invoice.issue_date.strftime("%Y-%m-%d"),
                 "due_date": invoice.due_date.strftime("%Y-%m-%d"),
-                "type": "income",
+                "type": deal_type,
                 "company_id": int(self.company_id),
                 "details": [detail],
             }
