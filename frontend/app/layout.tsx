@@ -3,6 +3,7 @@ import "./globals.css";
 import AuthProvider from "@/components/AuthProvider";
 import { HamburgerMenu } from "@/components/layout/HamburgerMenu";
 import { Sidebar } from "@/components/layout/Sidebar";
+import { ToastProvider } from "@/components/ui/Toast";
 
 export const metadata: Metadata = {
   title: "INVOICE_MANAGER",
@@ -17,6 +18,7 @@ export default function RootLayout({
   return (
     <html lang="ja">
       <body className="bg-gray-50 min-h-screen">
+        <ToastProvider>
         <AuthProvider>
           {/* PC sidebar (lg+) */}
           <div className="hidden lg:block">
@@ -33,6 +35,7 @@ export default function RootLayout({
             </div>
           </div>
         </AuthProvider>
+        </ToastProvider>
       </body>
     </html>
   );
