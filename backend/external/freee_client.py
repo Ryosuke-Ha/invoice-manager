@@ -1,18 +1,18 @@
-import json
 import logging
 import os
-import time
-from pathlib import Path
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 from urllib.parse import urlencode
 
 import httpx
+from sqlalchemy.orm import Session
 
-from models import AccountTitle, Invoice
+from domain.exceptions import FreeeTokenNotFoundError
+from models import AccountTitle, FreeeToken, Invoice
 
 logger = logging.getLogger(__name__)
 
-TOKENS_PATH = Path(__file__).parent.parent / ".tokens" / "freee_token.json"
+JST = timezone(timedelta(hours=9))
 
 
 class FreeeClient:
@@ -39,8 +39,8 @@ class FreeeClient:
             f"?{params}"
         )
 
-    def get_token(self, code: str) -> dict:
-        """認証コードからアクセストークンを取得して保存"""
+    def get_token(self, code: str, db: Session) -> dict:
+        """認証コードからアクセストークンを取得してDBに保存"""
         try:
             res = httpx.post(
                 self.AUTH_URL,
@@ -54,7 +54,7 @@ class FreeeClient:
             )
             res.raise_for_status()
             token = res.json()
-            self._save_token(token)
+            self._save_token(token, db)
             return token
         except Exception as e:
             logger.error(
@@ -62,23 +62,30 @@ class FreeeClient:
             )
             raise
 
-    def refresh_token(self) -> dict:
-        """アクセストークンをリフレッシュして保存"""
+    def refresh_token(self, db: Session) -> dict:
+        """DBからリフレッシュトークンを取得してアクセストークンを更新"""
         try:
-            saved = self._load_token()
+            record = db.query(FreeeToken).first()
+            if record is None:
+                raise FreeeTokenNotFoundError(
+                    "freeeトークンが見つかりません。"
+                    "GET /api/freee/auth から認証してください。"
+                )
             res = httpx.post(
                 self.AUTH_URL,
                 data={
                     "grant_type": "refresh_token",
                     "client_id": self.client_id,
                     "client_secret": self.client_secret,
-                    "refresh_token": saved["refresh_token"],
+                    "refresh_token": record.refresh_token,
                 },
             )
             res.raise_for_status()
             token = res.json()
-            self._save_token(token)
+            self._save_token(token, db)
             return token
+        except FreeeTokenNotFoundError:
+            raise
         except Exception as e:
             logger.error(
                 "freee tokenリフレッシュエラー endpoint=refresh_token error_message=%s",
@@ -86,22 +93,30 @@ class FreeeClient:
             )
             raise
 
-    def get_access_token(self) -> str:
-        """有効なアクセストークンを返す（期限切れの場合は自動リフレッシュ）"""
-        token = self._load_token()
+    def get_access_token(self, db: Session) -> str:
+        """DBから有効なアクセストークンを返す（期限切れの場合は自動リフレッシュ）"""
+        record = db.query(FreeeToken).first()
+        if record is None:
+            raise FreeeTokenNotFoundError(
+                "freeeトークンが見つかりません。"
+                "GET /api/freee/auth から認証してください。"
+            )
+        now = datetime.now(JST)
         # 60秒のバッファを設けてリフレッシュ
-        if time.time() >= token.get("expires_at", 0) - 60:
-            token = self.refresh_token()
-        return token["access_token"]
+        if now >= record.expires_at - timedelta(seconds=60):
+            token = self.refresh_token(db)
+            return token["access_token"]
+        return record.access_token
 
     def create_deal(
         self,
         invoice: Invoice,
+        db: Session,
         account_title: Optional[AccountTitle] = None,
     ) -> int:
         """請求書をfreeeに登録してfreee_deal_idを返す"""
         try:
-            access_token = self.get_access_token()
+            access_token = self.get_access_token(db)
             detail = {
                 "amount": invoice.amount,
                 "description": invoice.title,
@@ -124,6 +139,8 @@ class FreeeClient:
             )
             res.raise_for_status()
             return res.json()["deal"]["id"]
+        except FreeeTokenNotFoundError:
+            raise
         except Exception as e:
             logger.error(
                 "freee deal登録エラー endpoint=create_deal error_message=%s", str(e)
@@ -132,17 +149,20 @@ class FreeeClient:
 
     # ---------- private ----------
 
-    def _save_token(self, token: dict) -> None:
-        TOKENS_PATH.parent.mkdir(parents=True, exist_ok=True)
-        token_data = dict(token)
-        if "expires_in" in token_data and "expires_at" not in token_data:
-            token_data["expires_at"] = time.time() + token_data["expires_in"]
-        TOKENS_PATH.write_text(json.dumps(token_data))
-
-    def _load_token(self) -> dict:
-        if not TOKENS_PATH.exists():
-            raise FileNotFoundError(
-                "freeeトークンファイルが見つかりません。"
-                "GET /api/freee/auth から認証してください。"
+    def _save_token(self, token: dict, db: Session) -> None:
+        expires_at = datetime.now(JST) + timedelta(
+            seconds=token.get("expires_in", 3600)
+        )
+        record = db.query(FreeeToken).first()
+        if record is None:
+            record = FreeeToken(
+                access_token=token["access_token"],
+                refresh_token=token["refresh_token"],
+                expires_at=expires_at,
             )
-        return json.loads(TOKENS_PATH.read_text())
+            db.add(record)
+        else:
+            record.access_token = token["access_token"]
+            record.refresh_token = token["refresh_token"]
+            record.expires_at = expires_at
+        db.commit()

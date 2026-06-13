@@ -54,3 +54,8 @@ class AccountTitleInUseError(InvoiceManagerError):
 class InvalidStatusTransitionError(InvoiceManagerError):
     """不正なステータス遷移"""
     pass
+
+
+class FreeeTokenNotFoundError(InvoiceManagerError):
+    """freeeトークンが存在しない（未認証）"""
+    pass
