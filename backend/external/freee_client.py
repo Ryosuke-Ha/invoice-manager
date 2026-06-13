@@ -140,6 +140,12 @@ class FreeeClient:
                 headers={"Authorization": f"Bearer {access_token}"},
                 json=payload,
             )
+            logger.error(
+                "freee deal payload=%s response_status=%s response_body=%s",
+                payload,
+                res.status_code,
+                res.text,
+            )
             res.raise_for_status()
             return res.json()["deal"]["id"]
         except FreeeTokenNotFoundError:
