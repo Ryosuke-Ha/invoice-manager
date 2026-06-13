@@ -18,7 +18,7 @@ JST = timezone(timedelta(hours=9))
 class FreeeClient:
 
     BASE_URL = "https://api.freee.co.jp"
-    AUTH_URL = "https://accounts.freee.co.jp/public_api/token"
+    TOKEN_URL = "https://accounts.secure.freee.co.jp/public_api/token"
 
     def __init__(self):
         self.client_id = os.environ.get("FREEE_CLIENT_ID", "")
@@ -35,7 +35,7 @@ class FreeeClient:
             "scope": "read write",
         })
         return (
-            "https://accounts.freee.co.jp/public_api/authorize"
+            "https://accounts.secure.freee.co.jp/public_api/authorize"
             f"?{params}"
         )
 
@@ -43,7 +43,7 @@ class FreeeClient:
         """認証コードからアクセストークンを取得してDBに保存"""
         try:
             res = httpx.post(
-                self.AUTH_URL,
+                self.TOKEN_URL,
                 data={
                     "grant_type": "authorization_code",
                     "client_id": self.client_id,
@@ -72,7 +72,7 @@ class FreeeClient:
                     "GET /api/freee/auth から認証してください。"
                 )
             res = httpx.post(
-                self.AUTH_URL,
+                self.TOKEN_URL,
                 data={
                     "grant_type": "refresh_token",
                     "client_id": self.client_id,
