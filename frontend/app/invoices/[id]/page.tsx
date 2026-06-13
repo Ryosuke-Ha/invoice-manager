@@ -35,6 +35,9 @@ export default function InvoiceDetailPage() {
   const [actionError, setActionError] = useState<string | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const [isSyncing, setIsSyncing] = useState(false)
+  const [editingDueDate, setEditingDueDate] = useState(false)
+  const [dueDateInput, setDueDateInput] = useState("")
+  const [isSavingDueDate, setIsSavingDueDate] = useState(false)
 
   if (isLoading) {
     return (
@@ -54,6 +57,8 @@ export default function InvoiceDetailPage() {
 
   const overdue = isOverdue(invoice.due_date)
   const isDraft = invoice.status === "draft"
+  const canEditDueDate =
+    invoice.status !== "synced_to_freee" && invoice.status !== "completed"
   const canSyncFreee =
     invoice.status === "paid" && invoice.freee_sync_status === "unsynced"
   const nextStatuses = VALID_NEXT_STATUSES[invoice.status]
@@ -85,6 +90,35 @@ export default function InvoiceDetailPage() {
       setActionError(err instanceof Error ? err.message : "freee連携に失敗しました")
     } finally {
       setIsSyncing(false)
+    }
+  }
+
+  const handleStartEditDueDate = () => {
+    setDueDateInput(invoice.due_date)
+    setEditingDueDate(true)
+    setActionError(null)
+  }
+
+  const handleSaveDueDate = async () => {
+    if (!dueDateInput) return
+    setIsSavingDueDate(true)
+    setActionError(null)
+    try {
+      const res = await fetch(`${API_URL}/api/invoices/${id}/due-date`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ due_date: dueDateInput }),
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({})) as { detail?: string }
+        throw new Error(body.detail ?? `HTTP ${res.status}`)
+      }
+      await mutate()
+      setEditingDueDate(false)
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "支払期日の更新に失敗しました")
+    } finally {
+      setIsSavingDueDate(false)
     }
   }
 
@@ -128,9 +162,46 @@ export default function InvoiceDetailPage() {
           </div>
           <div>
             <dt className="text-sm text-gray-500 mb-0.5">支払期日</dt>
-            <dd className={`text-base font-medium ${overdue ? "text-red-600" : "text-gray-800"}`}>
-              {invoice.due_date}
-              {overdue && " ⚠ 期日超過"}
+            <dd className="text-base">
+              {editingDueDate ? (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="date"
+                    value={dueDateInput}
+                    min={invoice.issue_date}
+                    onChange={(e) => setDueDateInput(e.target.value)}
+                    className="border border-gray-300 rounded px-2 py-1 text-base focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    style={{ fontSize: "16px" }}
+                  />
+                  <button
+                    onClick={handleSaveDueDate}
+                    disabled={isSavingDueDate}
+                    className="text-sm text-white bg-blue-600 px-3 py-1 rounded hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    {isSavingDueDate ? "保存中..." : "保存"}
+                  </button>
+                  <button
+                    onClick={() => setEditingDueDate(false)}
+                    disabled={isSavingDueDate}
+                    className="text-sm text-gray-600 px-3 py-1 rounded border border-gray-300 hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    キャンセル
+                  </button>
+                </div>
+              ) : (
+                <span className={`font-medium ${overdue ? "text-red-600" : "text-gray-800"}`}>
+                  {invoice.due_date}
+                  {overdue && " ⚠ 期日超過"}
+                  {canEditDueDate && (
+                    <button
+                      onClick={handleStartEditDueDate}
+                      className="ml-2 text-sm text-blue-600 hover:text-blue-800 underline"
+                    >
+                      変更
+                    </button>
+                  )}
+                </span>
+              )}
             </dd>
           </div>
           {invoice.paid_date && (

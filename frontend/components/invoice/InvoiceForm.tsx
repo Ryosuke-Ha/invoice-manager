@@ -174,6 +174,7 @@ export function InvoiceForm({ initial, onSubmit, submitLabel, isSubmitting }: Pr
             type="date"
             value={values.due_date}
             onChange={set("due_date")}
+            min={values.issue_date || undefined}
             className={inputClass}
             style={{ fontSize: "16px" }}
           />

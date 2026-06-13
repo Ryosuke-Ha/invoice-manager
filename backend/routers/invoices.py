@@ -22,6 +22,7 @@ from repositories import invoice_repository as repo
 from repositories import template_repository as tmpl_repo
 from schemas.invoice import (
     InvoiceCreate,
+    InvoiceDueDateUpdate,
     InvoiceResponse,
     InvoiceStatusUpdate,
     InvoiceUpdate,
@@ -147,6 +148,36 @@ def update_invoice_status(
     if body.status == InvoiceStatus.PAID:
         invoice.paid_date = datetime.now(JST).date()
 
+    return repo.save(db, invoice)
+
+
+@router.patch("/{id}/due-date", response_model=InvoiceResponse)
+def update_due_date(
+    id: UUID,
+    body: InvoiceDueDateUpdate,
+    db: Session = Depends(get_db),
+):
+    invoice = repo.find_by_id(db, id)
+    if invoice is None:
+        raise HTTPException(status_code=404, detail="請求書が見つかりません")
+
+    non_editable = {
+        InvoiceStatus.SYNCED_TO_FREEE.value,
+        InvoiceStatus.COMPLETED.value,
+    }
+    if invoice.status in non_editable:
+        raise HTTPException(
+            status_code=400,
+            detail="freee連携済み・対応済みの請求書は支払期日を変更できません",
+        )
+
+    if body.due_date < invoice.issue_date:
+        raise HTTPException(
+            status_code=400,
+            detail="支払期日は発行日以降の日付を入力してください",
+        )
+
+    invoice.due_date = body.due_date
     return repo.save(db, invoice)
 
 

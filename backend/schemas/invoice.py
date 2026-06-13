@@ -30,6 +30,10 @@ class InvoiceStatusUpdate(BaseModel):
     status: InvoiceStatus
 
 
+class InvoiceDueDateUpdate(BaseModel):
+    due_date: date
+
+
 class InvoiceResponse(BaseModel):
     id: UUID
     title: str
