@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from database import get_db
 from domain.enums import FreeeSyncStatus, InvoiceStatus
 from domain.exceptions import (
+    FreeeTokenNotFoundError,
     InvalidAmountError,
     InvalidIssueDateError,
     InvalidStatusTransitionError,
@@ -168,7 +169,12 @@ def sync_to_freee(id: UUID, db: Session = Depends(get_db)):
 
     try:
         freee_client = FreeeClient()
-        deal_id = freee_client.create_deal(invoice, account_title)
+        deal_id = freee_client.create_deal(invoice, db, account_title)
+    except FreeeTokenNotFoundError:
+        raise HTTPException(
+            status_code=400,
+            detail="freeeが未認証です。GET /api/freee/auth から認証してください。",
+        )
     except Exception as e:
         raise HTTPException(
             status_code=502,

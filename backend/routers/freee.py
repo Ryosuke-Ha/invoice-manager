@@ -1,8 +1,10 @@
 import os
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import RedirectResponse
+from sqlalchemy.orm import Session
 
+from database import get_db
 from external.freee_client import FreeeClient
 
 router = APIRouter(prefix="/api/freee", tags=["freee"])
@@ -18,11 +20,11 @@ def get_auth_url():
 
 
 @router.get("/callback")
-def freee_callback(code: str):
+def freee_callback(code: str, db: Session = Depends(get_db)):
     """freee OAuth2コールバック: トークンを取得してフロントへリダイレクト"""
     client = FreeeClient()
     try:
-        client.get_token(code)
+        client.get_token(code, db)
     except Exception as e:
         raise HTTPException(
             status_code=400,
