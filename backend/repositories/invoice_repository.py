@@ -24,7 +24,7 @@ def find_all(db: Session, status: InvoiceStatus = None) -> list:
     query = db.query(Invoice)
     if status is not None:
         query = query.filter(Invoice.status == status.value)
-    return query.all()
+    return query.order_by(Invoice.due_date.desc(), Invoice.title.desc()).all()
 
 
 def find_due_within_days(db: Session, days: int) -> list:
