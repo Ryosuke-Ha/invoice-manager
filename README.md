@@ -1,5 +1,8 @@
 # invoice-manager
 
+[![Backend CI](https://github.com/Ryosuke-Ha/invoice-manager/actions/workflows/backend-ci.yml/badge.svg)](https://github.com/Ryosuke-Ha/invoice-manager/actions/workflows/backend-ci.yml)
+[![Frontend CI](https://github.com/Ryosuke-Ha/invoice-manager/actions/workflows/frontend-ci.yml/badge.svg)](https://github.com/Ryosuke-Ha/invoice-manager/actions/workflows/frontend-ci.yml)
+
 A personal invoice management app for freelancers.
 Automates the monthly billing workflow — freee sync, Slack payment reminders,
 and transportation expense tracking — in one place.
@@ -8,14 +11,16 @@ and transportation expense tracking — in one place.
 
 ## Demo
 
+No public demo: the app handles real financial data and freee credentials.
+
 ### Invoice List
-<img width="1704" height="605" alt="スクリーンショット 2026-08-01 16 17 54" src="https://github.com/user-attachments/assets/8a924a01-238f-4106-871b-498182ad3ac7" />
+![Invoice List](docs/images/invoice-list.png)
 
 ### freee Integration
-<img width="1444" height="486" alt="スクリーンショット 2026-08-01 16 20 42" src="https://github.com/user-attachments/assets/ad3d59f8-cff7-4318-9a19-4a58d8288bfb" />
+![freee Integration](docs/images/freee-integration.png)
 
 ### Slack Notification
-<img width="840" height="484" alt="スクリーンショット 2026-08-01 16 22 31" src="https://github.com/user-attachments/assets/cd29df66-0ae5-4a1e-8fe3-8b23dedca5aa" />
+![Slack Notification](docs/images/slack-notification.png)
 
 ## Architecture
 
@@ -51,12 +56,12 @@ graph TB
 
 ### Key Concepts and Relationships
 
-```
-InvoiceTemplate ──generates──▶ Invoice ◀──merges── MonthlyTransportationSummary
-                                    │                        │
-                                    │                   TransportationExpense
-                                    ▼
-                              AccountTitle (freee account item)
+```mermaid
+graph LR
+  InvoiceTemplate -->|generates| Invoice
+  MonthlyTransportationSummary -->|merges into| Invoice
+  MonthlyTransportationSummary --> TransportationExpense
+  Invoice --> AccountTitle["AccountTitle (freee account item)"]
 ```
 
 ### Aggregate Boundaries
@@ -108,7 +113,7 @@ InvoiceTemplate ──generates──▶ Invoice ◀──merges── MonthlyTr
 - **Requirement**: The same transportation costs recur on the same weekdays every month; manual entry each time is tedious
 - **Options**: A. Manual "Generate from template" button / B. Auto-save to DB on page load when month has zero records
 - **Decision**: B — opens the page in a ready-to-confirm state with no manual input required
-- **Trade-off**: Records are saved automatically without explicit user action, but they can be edited or deleted
+- **Trade-off**: Introduces a write side-effect on a read operation, which breaks GET idempotency. Accepted because the endpoint is single-user and the generated records are editable. Would move to an explicit action or a background job in a multi-user context.
 
 ### 6. Delegating authentication to Google OAuth + NextAuth.js
 - **Requirement**: Secure authentication without the cost of building it from scratch
@@ -121,6 +126,18 @@ InvoiceTemplate ──generates──▶ Invoice ◀──merges── MonthlyTr
 - **Options**: A. Check confirmation status individually in each API handler / B. Enforce at aggregate root (MonthlyTransportationSummary)
 - **Decision**: B — architectural enforcement prevents missed checks
 - **Trade-off**: A large aggregate may impact performance at scale
+
+### 8. Storing freee deal_id as String instead of Integer
+- **Requirement**: freee's deal IDs exceeded the range of a 32-bit integer in production data
+- **Options**: A. BigInteger column / B. String column
+- **Decision**: B — avoids assumptions about freee's internal ID format and future ID growth; external system data characteristics should not constrain our type choices
+- **Trade-off**: Loses numeric ordering guarantees; acceptable since deal IDs are used only as opaque foreign keys
+
+### 9. Using Transaction Pooler (IPv4) for Supabase connection
+- **Requirement**: Railway's outbound network does not support IPv6, but Supabase's direct connection and Session Pooler endpoints resolve to IPv6 addresses
+- **Options**: A. Direct connection / B. Session Pooler / C. Transaction Pooler (port 6543)
+- **Decision**: C — Transaction Pooler provides an IPv4-compatible endpoint and works within Railway's network constraints
+- **Trade-off**: Transaction Pooler does not support prepared statements; SQLAlchemy must be configured with `prepared_statement_cache_size=0`
 
 ## Current Design Limitations
 
