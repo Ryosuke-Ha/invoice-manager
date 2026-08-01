@@ -110,6 +110,13 @@ class TestValidTransitions:
         assert res.status_code == 200
         assert res.json()["status"] == "overdue"
 
+    def test_reminding_to_paid(self, client, db):
+        inv = create_invoice(client)
+        force_status(db, inv["id"], "reminding")
+        res = set_status(client, inv["id"], "paid")
+        assert res.status_code == 200
+        assert res.json()["status"] == "paid"
+
     def test_overdue_to_paid(self, client, db):
         inv = create_invoice(client)
         force_status(db, inv["id"], "overdue")
