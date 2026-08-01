@@ -1,6 +1,6 @@
 import os
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
@@ -11,7 +11,7 @@ from routers import account_titles, batch, freee, invoices, templates, transport
 
 models.Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="INVOICE_MANAGER API")
+app = FastAPI(title="INVOICE_MANAGER API", debug=False)
 
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 
@@ -25,10 +25,23 @@ app.add_middleware(
 
 
 @app.exception_handler(DomainError)
-async def domain_error_handler(request, exc: DomainError):
+async def domain_error_handler(request: Request, exc: DomainError) -> JSONResponse:
     return JSONResponse(
         status_code=400,
         content={"detail": str(exc)}
+    )
+
+
+@app.exception_handler(Exception)
+async def general_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    if os.getenv("ENVIRONMENT") == "production":
+        return JSONResponse(
+            status_code=500,
+            content={"detail": "内部エラーが発生しました。"},
+        )
+    return JSONResponse(
+        status_code=500,
+        content={"detail": str(exc)},
     )
 
 
