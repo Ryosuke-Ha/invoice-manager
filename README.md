@@ -6,9 +6,16 @@ freeeへの自動連携・Slackリマインド通知・交通費管理を一元�
 
 > 2026年5月から自分で継続使用中 ／ 累計17件処理
 
-## デモ
+## デモ（画面イメージ）
 
-※ GIF準備中
+### 請求書一覧
+<img width="1704" height="605" alt="スクリーンショット 2026-08-01 16 17 54" src="https://github.com/user-attachments/assets/8a924a01-238f-4106-871b-498182ad3ac7" />
+
+### freee連携画面
+<img width="1444" height="486" alt="スクリーンショット 2026-08-01 16 20 42" src="https://github.com/user-attachments/assets/ad3d59f8-cff7-4318-9a19-4a58d8288bfb" />
+
+### Slack通知
+<img width="840" height="484" alt="スクリーンショット 2026-08-01 16 22 31" src="https://github.com/user-attachments/assets/cd29df66-0ae5-4a1e-8fe3-8b23dedca5aa" />
 
 ## 技術構成
 
