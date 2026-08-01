@@ -1,27 +1,27 @@
 # invoice-manager
 
-フリーランス向けの請求書管理アプリ。
-freeeへの自動連携・Slackリマインド通知・交通費管理を一元化し、
-毎月の請求業務にかかる手作業を削減する。
+A personal invoice management app for freelancers.
+Automates the monthly billing workflow — freee sync, Slack payment reminders,
+and transportation expense tracking — in one place.
 
-> 2026年5月から自分で継続使用中 ／ 累計17件処理
+> In use since May 2026 · 17 invoices processed
 
-## デモ（画面イメージ）
+## Demo
 
-### 請求書一覧
+### Invoice List
 <img width="1704" height="605" alt="スクリーンショット 2026-08-01 16 17 54" src="https://github.com/user-attachments/assets/8a924a01-238f-4106-871b-498182ad3ac7" />
 
-### freee連携画面
+### freee Integration
 <img width="1444" height="486" alt="スクリーンショット 2026-08-01 16 20 42" src="https://github.com/user-attachments/assets/ad3d59f8-cff7-4318-9a19-4a58d8288bfb" />
 
-### Slack通知
+### Slack Notification
 <img width="840" height="484" alt="スクリーンショット 2026-08-01 16 22 31" src="https://github.com/user-attachments/assets/cd29df66-0ae5-4a1e-8fe3-8b23dedca5aa" />
 
-## 技術構成
+## Architecture
 
 ```mermaid
 graph TB
-  User["ユーザー（ブラウザ）"]
+  User["User (Browser)"]
   FE["Frontend\nNext.js 14\nVercel"]
   BE["Backend\nFastAPI\nRailway"]
   DB["PostgreSQL\nSupabase"]
@@ -37,118 +37,118 @@ graph TB
   GHA --> BE
 ```
 
-| 技術 | 選定理由 |
+| Technology | Reason |
 |---|---|
-| Next.js 14 (App Router) | SSR・ルーティング・NextAuth.jsとの統合が容易 |
-| FastAPI | 型安全・自動ドキュメント生成・Python資産の活用 |
-| SQLAlchemy + Alembic | ORMとマイグレーション管理を分離して安全なスキーマ変更 |
-| PostgreSQL (Supabase) | マネージドDB・無料枠で個人利用に十分 |
-| Vercel + Railway | フロント・バックをそれぞれ最適なPaaSにデプロイ |
-| NextAuth.js (Google OAuth) | 認証基盤を自前実装せず安全に委譲 |
-| GitHub Actions | Cron バッチをインフラなしで定期実行 |
+| Next.js 14 (App Router) | SSR, routing, and seamless NextAuth.js integration |
+| FastAPI | Type-safe, auto-generated docs, Python ecosystem |
+| SQLAlchemy + Alembic | Decoupled ORM and migration management for safe schema changes |
+| PostgreSQL (Supabase) | Managed DB with a free tier sufficient for personal use |
+| Vercel + Railway | Deploy frontend and backend on platforms optimized for each |
+| NextAuth.js (Google OAuth) | Delegate auth complexity to a battle-tested library |
+| GitHub Actions | Run cron batches on a schedule without additional infrastructure |
 
-## ドメインモデル
+## Domain Model
 
-### 主要な概念と関係
+### Key Concepts and Relationships
 
 ```
-InvoiceTemplate ──生成──▶ Invoice ◀──反映── MonthlyTransportationSummary
-                              │                        │
-                              │               TransportationExpense
-                              ▼
-                        AccountTitle（freee勘定科目）
+InvoiceTemplate ──generates──▶ Invoice ◀──merges── MonthlyTransportationSummary
+                                    │                        │
+                                    │                   TransportationExpense
+                                    ▼
+                              AccountTitle (freee account item)
 ```
 
-### 集約の境界
+### Aggregate Boundaries
 
-| 集約 | 境界を引いた理由 |
+| Aggregate | Reason for boundary |
 |---|---|
-| Invoice | ステータスライフサイクルと整合性を単一集約で管理 |
-| MonthlyTransportationSummary | 確定フラグ以降の不変性をまとめて保証するため |
-| AccountTitle | freee側のマスタとの同期単位として独立 |
-| InvoiceTemplate | 請求書生成のファクトリ入力として独立 |
+| Invoice | Owns the status lifecycle and enforces its own consistency |
+| MonthlyTransportationSummary | Guarantees immutability after confirmation as a single unit |
+| AccountTitle | Independent sync unit tied to freee master data |
+| InvoiceTemplate | Isolated as factory input for invoice generation |
 
-### 業務ルールの配置
+### Where Business Rules Live
 
-| ルール | 配置場所 | 理由 |
+| Rule | Layer | Reason |
 |---|---|---|
-| ステータス遷移の可否 | ドメイン層（value_objects.py） | 不正遷移をDBに届ける前に防ぐ |
-| 確定済み交通費の変更禁止 | ドメイン層（exceptions.py） | 集約ルートで一元管理 |
-| 請求金額の正値バリデーション | ドメイン層（InvoiceAmount VO） | 値オブジェクトで型として表現 |
-| 勘定科目の論理削除 | アプリ層（repository） | 参照整合性をアプリで制御 |
-| freee連携の前提条件チェック | ドメインサービス（FreeeSyncDomainService） | 集約をまたぐ判定のため |
+| Status transition validation | Domain (value_objects.py) | Prevent invalid transitions before reaching the DB |
+| Block changes on confirmed expenses | Domain (exceptions.py) | Enforced at the aggregate root |
+| Invoice amount must be positive | Domain (InvoiceAmount VO) | Expressed as a type via Value Object |
+| Soft-delete account titles | Application (repository) | Referential integrity controlled at app layer |
+| freee sync eligibility check | Domain Service (FreeeSyncDomainService) | Cross-aggregate judgment |
 
-## 設計判断
+## Design Decisions
 
-### 判断1: ステータス遷移をドメイン層で管理
-- **要件・制約**: 請求書は下書き→送付→リマインド→支払済み→freee連携→完了の順に遷移する
-- **選択肢**: A. DBのCHECK制約 / B. アプリ層のif文 / C. ドメイン層のVALID_TRANSITIONSマップ
-- **採用**: C。遷移ルールを1箇所に集約し、テスト・変更を容易にする
-- **トレードオフ**: DBレベルの保護がないため、直接SQL操作には無防備
+### 1. Status transitions managed in the domain layer
+- **Requirement**: Invoices follow a fixed lifecycle: created → reminding → paid → freee synced → done
+- **Options**: A. DB CHECK constraint / B. if-statements in app layer / C. VALID_TRANSITIONS map in domain layer
+- **Decision**: C — centralizes transition rules in one place, making them easy to test and modify
+- **Trade-off**: No DB-level protection; direct SQL manipulation bypasses the rules
 
-### 判断2: DRAFTステータスを廃止
-- **要件・制約**: 作成後すぐに送付済み扱いにしたい・下書き管理は運用上不要
-- **選択肢**: A. DRAFTを維持 / B. 作成時点でSENTに設定
-- **採用**: B。不要なステータスを減らしてUIとフローをシンプルに保つ
-- **トレードオフ**: 「下書きとして保存して後で送る」ユースケースに対応できない
+### 2. Removed the DRAFT status
+- **Requirement**: Invoices should be treated as active immediately after creation; draft management added unnecessary complexity
+- **Options**: A. Keep DRAFT / B. Set status to SENT on creation
+- **Decision**: B — simplifies the UI and workflow by eliminating an unused state
+- **Trade-off**: Cannot save an invoice as a draft for later; not needed for personal use
 
-### 判断3: freeeトークンをDBに保存
-- **要件・制約**: Railwayはデプロイのたびにコンテナをリセットするためファイル保存が使えない
-- **選択肢**: A. ファイル保存（backend/.tokens/） / B. DB保存 / C. 環境変数
-- **採用**: B。デプロイをまたいで永続化でき、リフレッシュトークンの更新も一元管理できる
-- **トレードオフ**: トークンがDBに平文保存される（暗号化未対応）
+### 3. Storing freee OAuth tokens in the DB
+- **Requirement**: Railway resets the container filesystem on every deploy, making file-based storage unreliable
+- **Options**: A. File storage (backend/.tokens/) / B. DB storage / C. Environment variable
+- **Decision**: B — persists across deploys and centralizes token refresh management
+- **Trade-off**: Tokens stored in plaintext in the DB (encryption not implemented)
 
-### 判断4: バッチ実行をGitHub Actionsに委譲
-- **要件・制約**: 毎日定刻にfreee連携・Slackリマインドを実行したい
-- **選択肢**: A. Railway Cron / B. GitHub Actions schedule / C. 外部Cronサービス
-- **採用**: B。コードと同じリポジトリで管理でき・無料枠で十分・ログが見やすい
-- **トレードオフ**: GitHub Actionsのスケジュール実行は数分の遅延が発生することがある
+### 4. Delegating batch execution to GitHub Actions
+- **Requirement**: Run freee sync and Slack reminders on a daily schedule
+- **Options**: A. Railway Cron / B. GitHub Actions schedule / C. External cron service
+- **Decision**: B — co-located with the codebase, free tier is sufficient, logs are accessible
+- **Trade-off**: GitHub Actions scheduled jobs can be delayed by a few minutes
 
-### 判断5: 交通費テンプレートを画面表示時に自動保存
-- **要件・制約**: 毎月同じ曜日に同じ交通費が発生する・毎回手入力は煩雑
-- **選択肢**: A. 手動で「テンプレートから生成」ボタンを押す / B. 画面表示時に自動保存
-- **採用**: B。0件の月を開いた時点でDBに自動保存し、入力不要な状態にする
-- **トレードオフ**: 意図せず自動保存される可能性があるが、編集・削除で対応可能
+### 5. Auto-saving transportation expenses from templates on page load
+- **Requirement**: The same transportation costs recur on the same weekdays every month; manual entry each time is tedious
+- **Options**: A. Manual "Generate from template" button / B. Auto-save to DB on page load when month has zero records
+- **Decision**: B — opens the page in a ready-to-confirm state with no manual input required
+- **Trade-off**: Records are saved automatically without explicit user action, but they can be edited or deleted
 
-### 判断6: 認証をGoogle OAuth + NextAuth.jsに委譲
-- **要件・制約**: 個人利用・セキュアな認証を自前実装コストなしで実現したい
-- **選択肢**: A. メール/パスワード認証を自前実装 / B. Google OAuth + NextAuth.js
-- **採用**: B。認証の複雑さをライブラリに委譲し、ドメインロジックに集中する
-- **トレードオフ**: Googleアカウント依存になる・オフライン環境では使えない
+### 6. Delegating authentication to Google OAuth + NextAuth.js
+- **Requirement**: Secure authentication without the cost of building it from scratch
+- **Options**: A. Custom email/password auth / B. Google OAuth + NextAuth.js
+- **Decision**: B — offloads auth complexity to a well-maintained library
+- **Trade-off**: Requires a Google account; unusable offline
 
-### 判断7: 交通費の確定フラグを集約ルートで管理
-- **要件・制約**: 確定後は交通費の追加・変更・削除を禁止したい
-- **選択肢**: A. 各APIで確定チェックを個別実装 / B. 集約ルート（MonthlyTransportationSummary）で一元管理
-- **採用**: B。確定チェックの漏れをアーキテクチャで防ぐ
-- **トレードオフ**: 集約が大きくなるとパフォーマンスに影響する可能性がある
+### 7. Confirmation flag managed at the aggregate root
+- **Requirement**: Once a monthly transportation summary is confirmed, no records should be added, modified, or deleted
+- **Options**: A. Check confirmation status individually in each API handler / B. Enforce at aggregate root (MonthlyTransportationSummary)
+- **Decision**: B — architectural enforcement prevents missed checks
+- **Trade-off**: A large aggregate may impact performance at scale
 
-## 現時点の設計の限界
+## Current Design Limitations
 
-### マルチユーザー非対応
-- **破綻する条件**: 複数人が同じアプリを使う場合、全員が同じ請求書・交通費を見てしまう
-- **何を変えるか**: 各テーブルに `user_id` を追加してデータを分離する
-- **今やっていない理由**: 個人利用のため不要（YAGNI）
+### No multi-user support
+- **When it breaks**: If multiple people use the app, they share all invoices and expenses
+- **What to change**: Add `user_id` to each table and filter by user
+- **Why not now**: Personal use only (YAGNI)
 
-### freeeトークンが1アカウントのみ
-- **破綻する条件**: 複数のfreee事業所と連携したい場合
-- **何を変えるか**: FreeeTokenテーブルに `company_id` を追加して複数管理
-- **今やっていない理由**: 個人利用で事業所は1つのみ
+### Single freee account only
+- **When it breaks**: If connecting to multiple freee companies is needed
+- **What to change**: Add `company_id` to the FreeeToken table
+- **Why not now**: Only one company in personal use
 
-### バッチのエラー通知がない
-- **破綻する条件**: freee連携やリマインドが失敗しても気づけない
-- **何を変えるか**: GitHub Actionsの失敗通知をSlack/メールに送る
-- **今やっていない理由**: ログで確認できる範囲で運用コストを抑えている
+### No error alerting for batch jobs
+- **When it breaks**: freee sync or reminders fail silently
+- **What to change**: Send GitHub Actions failure notifications to Slack or email
+- **Why not now**: Logs are manually checkable; acceptable operational overhead for now
 
-### スケール時のN+1問題
-- **破綻する条件**: 請求書が数百件を超えると一覧取得が遅くなる
-- **何を変えるか**: eager loadingの見直し・ページネーションの導入
-- **今やっていない理由**: 個人利用で件数が少なく現状問題なし
+### N+1 risk at scale
+- **When it breaks**: Invoice list queries will slow down beyond a few hundred records
+- **What to change**: Review eager loading strategy; introduce pagination
+- **Why not now**: Record count is low in personal use; not a current bottleneck
 
-## セットアップ
+## Setup
 
-### 必要な環境変数
+### Environment Variables
 
-backend は `backend/.env.example`、frontend は `frontend/.env.example` を参照。
+See `backend/.env.example` and `frontend/.env.example` for required variables.
 
 ### Backend
 
@@ -169,9 +169,10 @@ npm install
 npm run dev
 ```
 
-## セキュリティ
+## Security
 
-- 環境変数は絶対にコミットしないこと
-- `backend/.env`・`frontend/.env.local` は `.gitignore` で除外済み
-- 本番環境の秘密鍵は Railway・Vercel のダッシュボードで管理
-- freeeトークンは DB に保存（`.gitignore` で除外済み）
+- Never commit secrets — `.env` and `.env.local` are excluded via `.gitignore`
+- Production secrets are managed in Railway and Vercel dashboards
+- freee OAuth tokens are stored in the DB (not in files)
+- Security headers (X-Frame-Options, CSP, HSTS, etc.) configured in `next.config.js`
+- Rate limiting on batch endpoints via `slowapi`
