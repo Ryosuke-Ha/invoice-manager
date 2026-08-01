@@ -88,19 +88,21 @@ export default function InvoiceDetailPage() {
         })
         if (!res.ok) {
           const body = await res.json().catch(() => ({})) as { detail?: string }
-          throw new Error(body.detail ?? `HTTP ${res.status}`)
+          throw new Error(body.detail ?? "freee連携に失敗しました")
         }
+        await mutate()
+        showToast({ message: "freeeに連携しました", variant: "success" })
       } else if (cfg.nextStatus) {
         await updateStatus(id, cfg.nextStatus)
+        await mutate()
+        showToast({
+          message: `ステータスを「${STATUS_LABELS[cfg.nextStatus]}」に更新しました`,
+          variant: "success",
+        })
       }
-      await mutate()
-      showToast({
-        message: `ステータスを「${cfg.action === "sync-freee" ? STATUS_LABELS.synced_to_freee : STATUS_LABELS[cfg.nextStatus!]}」に更新しました`,
-        variant: "success",
-      })
     } catch (err) {
       showToast({
-        message: err instanceof Error ? err.message : "更新に失敗しました",
+        message: err instanceof Error ? err.message : cfg.action === "sync-freee" ? "freee連携に失敗しました" : "更新に失敗しました",
         variant: "error",
       })
     } finally {
