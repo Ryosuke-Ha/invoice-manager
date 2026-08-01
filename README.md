@@ -17,16 +17,32 @@
 - 外部連携: freee API / Slack Incoming Webhook
 - Infrastructure: Vercel（Frontend）+ Railway（Backend）
 
-## セットアップ
+## 環境変数
 
-### 環境変数
+### Backend（backend/.env）
 
-```
+`backend/.env.example` を参照。
+
+```bash
 cp backend/.env.example backend/.env
+```
+
+### Frontend（frontend/.env.local）
+
+`frontend/.env.example` を参照。
+
+```bash
 cp frontend/.env.example frontend/.env.local
 ```
 
-各 `.env` ファイルに必要な値を設定してください。
+## セキュリティ
+
+- 環境変数は絶対にコミットしないこと
+- `backend/.env`・`frontend/.env.local` は `.gitignore` で除外済み
+- freee トークンは `backend/.tokens/` に保存されるが `.gitignore` で除外済み
+- 本番環境の秘密鍵は Railway・Vercel のダッシュボードで管理
+
+## セットアップ
 
 ### Backend
 
