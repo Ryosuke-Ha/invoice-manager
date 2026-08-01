@@ -27,7 +27,7 @@ class TransportationInvoiceDetailFactory:
             amount=total,
             issue_date=date.today(),
             due_date=last_day_of_month(summary.year, summary.month),
-            status=InvoiceStatus.DRAFT.value,
+            status=InvoiceStatus.SENT.value,
             freee_sync_status=FreeeSyncStatus.UNSYNCED.value,
             account_title_id=account_title_id,
         )

@@ -155,7 +155,7 @@ class TestCreateInvoiceFromTemplate:
         body = res.json()
         assert body["title"] == "月次開発費"
         assert body["amount"] == 500000
-        assert body["status"] == "draft"
+        assert body["status"] == "sent"
         assert body["freee_sync_status"] == "unsynced"
         assert body["template_id"] == tmpl["id"]
 

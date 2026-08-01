@@ -85,25 +85,23 @@ def force_status(db, invoice_id: str, status: str):
 # ---------- 正常遷移 ----------
 
 class TestValidTransitions:
-    def test_draft_to_sent(self, client):
-        inv = create_invoice(client)
-        res = set_status(client, inv["id"], "sent")
-        assert res.status_code == 200
-        assert res.json()["status"] == "sent"
-
     def test_sent_to_reminding(self, client, db):
         inv = create_invoice(client)
-        force_status(db, inv["id"], "sent")
         res = set_status(client, inv["id"], "reminding")
         assert res.status_code == 200
         assert res.json()["status"] == "reminding"
 
     def test_sent_to_overdue(self, client, db):
         inv = create_invoice(client)
-        force_status(db, inv["id"], "sent")
         res = set_status(client, inv["id"], "overdue")
         assert res.status_code == 200
         assert res.json()["status"] == "overdue"
+
+    def test_sent_to_paid(self, client):
+        inv = create_invoice(client)
+        res = set_status(client, inv["id"], "paid")
+        assert res.status_code == 200
+        assert res.json()["status"] == "paid"
 
     def test_reminding_to_overdue(self, client, db):
         inv = create_invoice(client)
@@ -137,36 +135,26 @@ class TestValidTransitions:
 # ---------- 不正遷移 ----------
 
 class TestInvalidTransitions:
-    def test_draft_to_paid(self, client):
-        inv = create_invoice(client)
-        res = set_status(client, inv["id"], "paid")
-        assert res.status_code == 400
-
-    def test_draft_to_overdue(self, client):
-        inv = create_invoice(client)
-        res = set_status(client, inv["id"], "overdue")
-        assert res.status_code == 400
-
-    def test_draft_to_completed(self, client):
+    def test_sent_to_completed_fails(self, client):
         inv = create_invoice(client)
         res = set_status(client, inv["id"], "completed")
         assert res.status_code == 400
 
-    def test_completed_to_draft(self, client, db):
+    def test_completed_to_sent_fails(self, client, db):
         inv = create_invoice(client)
         force_status(db, inv["id"], "completed")
-        res = set_status(client, inv["id"], "draft")
+        res = set_status(client, inv["id"], "sent")
         assert res.status_code == 400
 
-    def test_paid_to_draft(self, client, db):
+    def test_paid_to_sent_fails(self, client, db):
         inv = create_invoice(client)
         force_status(db, inv["id"], "paid")
-        res = set_status(client, inv["id"], "draft")
+        res = set_status(client, inv["id"], "sent")
         assert res.status_code == 400
 
     def test_not_found(self, client):
         res = set_status(
-            client, "00000000-0000-0000-0000-000000000000", "sent"
+            client, "00000000-0000-0000-0000-000000000000", "reminding"
         )
         assert res.status_code == 404
 
@@ -183,9 +171,9 @@ class TestPaidDate:
         assert body["paid_date"] is not None
         assert body["paid_date"] == datetime.now(JST).date().isoformat()
 
-    def test_paid_date_not_set_on_other_transitions(self, client):
+    def test_paid_date_not_set_on_reminding_transition(self, client):
         inv = create_invoice(client)
-        res = set_status(client, inv["id"], "sent")
+        res = set_status(client, inv["id"], "reminding")
         assert res.status_code == 200
         assert res.json()["paid_date"] is None
 

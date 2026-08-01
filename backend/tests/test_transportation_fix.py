@@ -99,7 +99,7 @@ class TestMergeToInvoice:
         assert res.status_code == 200
         body = res.json()
         assert body["title"] == "2026年5月 交通費"
-        assert body["status"] == "draft"
+        assert body["status"] == "sent"
         assert body["freee_sync_status"] == "unsynced"
 
     def test_merge_not_fixed_fails(self, client):
