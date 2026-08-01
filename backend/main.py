@@ -3,15 +3,21 @@ import os
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 
 from database import engine
 import models
 from domain.exceptions import DomainError
+from rate_limiter import limiter
 from routers import account_titles, batch, freee, invoices, templates, transportation
 
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="INVOICE_MANAGER API", debug=False)
+
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 
