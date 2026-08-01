@@ -92,13 +92,13 @@ class TestListInvoices:
 
     def test_filter_by_status_match(self, client):
         create_sample(client)
-        res = client.get("/api/invoices?status=draft")
+        res = client.get("/api/invoices?status=sent")
         assert res.status_code == 200
         assert len(res.json()) == 1
 
     def test_filter_by_status_no_match(self, client):
         create_sample(client)
-        res = client.get("/api/invoices?status=sent")
+        res = client.get("/api/invoices?status=reminding")
         assert res.status_code == 200
         assert res.json() == []
 
@@ -126,7 +126,7 @@ class TestCreateInvoice:
         body = res.json()
         assert body["title"] == "2026年5月分請求書"
         assert body["amount"] == 500000
-        assert body["status"] == "draft"
+        assert body["status"] == "sent"
         assert body["freee_sync_status"] == "unsynced"
         assert "id" in body
 
@@ -159,8 +159,17 @@ class TestCreateInvoice:
 # ---------- 更新 ----------
 
 class TestUpdateInvoice:
-    def test_update_draft(self, client):
+    def test_update_draft(self, client, db):
+        import uuid
+        from models import Invoice as InvoiceModel
         created = create_sample(client).json()
+
+        # 初期ステータスはSENTなのでDRAFTに強制変更
+        db.query(InvoiceModel).filter(
+            InvoiceModel.id == uuid.UUID(created["id"])
+        ).update({"status": "draft"})
+        db.commit()
+
         res = client.put(
             f"/api/invoices/{created['id']}",
             json={"title": "更新済み請求書", "amount": 600000},
@@ -170,17 +179,10 @@ class TestUpdateInvoice:
         assert body["title"] == "更新済み請求書"
         assert body["amount"] == 600000
 
-    def test_update_non_draft_fails(self, client, db):
-        import uuid
-        from models import Invoice as InvoiceModel
+    def test_update_non_draft_fails(self, client):
         created = create_sample(client).json()
 
-        # ステータスを手動で変更
-        db.query(InvoiceModel).filter(
-            InvoiceModel.id == uuid.UUID(created["id"])
-        ).update({"status": "sent"})
-        db.commit()
-
+        # 初期ステータスがSENTなのでそのままPUTするとDraft以外として弾かれる
         res = client.put(
             f"/api/invoices/{created['id']}",
             json={"title": "変更しようとする"},
@@ -198,24 +200,27 @@ class TestUpdateInvoice:
 # ---------- 削除 ----------
 
 class TestDeleteInvoice:
-    def test_delete_draft(self, client):
+    def test_delete_draft(self, client, db):
+        import uuid
+        from models import Invoice as InvoiceModel
         created = create_sample(client).json()
+
+        # 初期ステータスはSENTなのでDRAFTに強制変更
+        db.query(InvoiceModel).filter(
+            InvoiceModel.id == uuid.UUID(created["id"])
+        ).update({"status": "draft"})
+        db.commit()
+
         res = client.delete(f"/api/invoices/{created['id']}")
         assert res.status_code == 204
 
         res = client.get(f"/api/invoices/{created['id']}")
         assert res.status_code == 404
 
-    def test_delete_non_draft_fails(self, client, db):
-        import uuid
-        from models import Invoice as InvoiceModel
+    def test_delete_non_draft_fails(self, client):
         created = create_sample(client).json()
 
-        db.query(InvoiceModel).filter(
-            InvoiceModel.id == uuid.UUID(created["id"])
-        ).update({"status": "sent"})
-        db.commit()
-
+        # 初期ステータスがSENTなのでそのまま削除しようとすると弾かれる
         res = client.delete(f"/api/invoices/{created['id']}")
         assert res.status_code == 400
 

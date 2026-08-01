@@ -140,8 +140,7 @@ class IssueDate:
 
 
 VALID_TRANSITIONS: Dict[InvoiceStatus, List[InvoiceStatus]] = {
-    InvoiceStatus.DRAFT: [InvoiceStatus.SENT],
-    InvoiceStatus.SENT: [InvoiceStatus.REMINDING, InvoiceStatus.OVERDUE],
+    InvoiceStatus.SENT: [InvoiceStatus.REMINDING, InvoiceStatus.OVERDUE, InvoiceStatus.PAID],
     InvoiceStatus.REMINDING: [InvoiceStatus.OVERDUE, InvoiceStatus.PAID],
     InvoiceStatus.OVERDUE: [InvoiceStatus.PAID],
     InvoiceStatus.PAID: [InvoiceStatus.SYNCED_TO_FREEE],
@@ -153,7 +152,8 @@ VALID_TRANSITIONS: Dict[InvoiceStatus, List[InvoiceStatus]] = {
 def validate_status_transition(
     current: InvoiceStatus, next_status: InvoiceStatus
 ) -> None:
-    if next_status not in VALID_TRANSITIONS[current]:
+    allowed = VALID_TRANSITIONS.get(current, [])
+    if next_status not in allowed:
         raise InvalidStatusTransitionError(
             f"{current} → {next_status} への遷移は許可されていません"
         )

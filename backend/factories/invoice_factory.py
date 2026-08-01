@@ -19,7 +19,7 @@ def create_from_template(
         amount=template.amount,
         issue_date=issue_date,
         due_date=due_date,
-        status=InvoiceStatus.DRAFT.value,
+        status=InvoiceStatus.SENT.value,
         freee_sync_status=FreeeSyncStatus.UNSYNCED.value,
         account_title_id=template.account_title_id,
         template_id=template.id,

@@ -27,7 +27,6 @@ type ActionConfig = {
 }
 
 const STATUS_ACTIONS: Partial<Record<InvoiceStatus, ActionConfig[]>> = {
-  draft: [{ label: "送付済みにする", variant: "primary", nextStatus: "sent" }],
   sent: [{ label: "支払済みにする", variant: "primary", nextStatus: "paid" }],
   reminding: [{ label: "支払済みにする", variant: "primary", nextStatus: "paid" }],
   overdue: [{ label: "支払済みにする", variant: "primary", nextStatus: "paid" }],

@@ -37,7 +37,7 @@ export const VALID_NEXT_STATUSES: Record<InvoiceStatus, InvoiceStatus[]> = {
 
 export const STATUS_LABELS: Record<InvoiceStatus, string> = {
   draft: "下書き",
-  sent: "送付済み",
+  sent: "作成済み",
   reminding: "リマインド中",
   overdue: "期日超過",
   paid: "支払済み",

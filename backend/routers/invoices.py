@@ -87,6 +87,7 @@ def create_invoice(body: InvoiceCreate, db: Session = Depends(get_db)):
         amount=body.amount,
         due_date=body.due_date,
         issue_date=body.issue_date,
+        status=InvoiceStatus.SENT.value,
         account_title_id=body.account_title_id,
         template_id=body.template_id,
     )

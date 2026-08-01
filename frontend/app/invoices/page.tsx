@@ -14,7 +14,6 @@ const EXCLUDED_FROM_ACTIVE: InvoiceStatus[] = ["synced_to_freee", "completed"]
 
 const FILTER_TABS: { label: string; value: FilterTab }[] = [
   { label: "未対応", value: "active" },
-  { label: STATUS_LABELS.draft, value: "draft" },
   { label: STATUS_LABELS.sent, value: "sent" },
   { label: STATUS_LABELS.reminding, value: "reminding" },
   { label: STATUS_LABELS.overdue, value: "overdue" },
