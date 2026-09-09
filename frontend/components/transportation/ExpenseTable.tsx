@@ -176,8 +176,17 @@ export function ExpenseTable({ isFixed, expenses, tempExpenses, onAdd, onUpdate,
     else if (e.key === "Escape") { e.preventDefault(); cancelEdit() }
   }
 
+  const handleEditTextKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") { e.preventDefault(); e.stopPropagation() }
+    else if (e.key === "Escape") { e.preventDefault(); cancelEdit() }
+  }
+
   const handleNewKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") { e.preventDefault(); addNew() }
+  }
+
+  const handleNewTextKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") { e.preventDefault(); e.stopPropagation() }
   }
 
   const total = expenses.reduce((sum, e) => sum + e.amount, 0)
@@ -269,7 +278,7 @@ export function ExpenseTable({ isFixed, expenses, tempExpenses, onAdd, onUpdate,
                           onChange={(e) =>
                             setEditValues((v) => ({ ...v, description: e.target.value }))
                           }
-                          onKeyDown={handleEditKeyDown}
+                          onKeyDown={handleEditTextKeyDown}
                           className={inputClass}
                           style={{ fontSize: "16px" }}
                           disabled={isSaving}
@@ -373,7 +382,7 @@ export function ExpenseTable({ isFixed, expenses, tempExpenses, onAdd, onUpdate,
                           onChange={(e) =>
                             setEditValues((v) => ({ ...v, description: e.target.value }))
                           }
-                          onKeyDown={handleEditKeyDown}
+                          onKeyDown={handleEditTextKeyDown}
                           placeholder="内容・区間（例: 渋谷→新宿）"
                           className={inputClass}
                           style={{ fontSize: "16px" }}
@@ -457,7 +466,7 @@ export function ExpenseTable({ isFixed, expenses, tempExpenses, onAdd, onUpdate,
                     onChange={(e) =>
                       setNewValues((v) => ({ ...v, description: e.target.value }))
                     }
-                    onKeyDown={handleNewKeyDown}
+                    onKeyDown={handleNewTextKeyDown}
                     placeholder="内容・区間（例: 渋谷→新宿）"
                     className={`${inputClass} text-gray-500 placeholder:text-gray-300`}
                     style={{ fontSize: "16px" }}
